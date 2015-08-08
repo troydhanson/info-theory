@@ -1,20 +1,23 @@
-These are my notes from some topics in "information theory".
+Layman's Notes on Information Theory
+====================================
+Troy D. Hanson <tdh@tkhanson.net>
 
-Recommended books:
-* "Coding and Information Theory", Richard W. Hamming
-* "Silicon Dreams", Robert Lucky
+Related https://github.com/troydhanson/info-theory[sample code].
+
+See these sources for much more authoritative coverage:
+
+* "A Mathematical Theory of Communication", by Claude Shannon.
+* "Coding and Information Theory", by Richard W. Hamming.
+* "Silicon Dreams", by Robert Lucky. 
+
+These are my layman's notes on info theory. As a teen I read
+Lucky's book. Later I read Shannon's paper and Hamming's book.
 
 Topics:
 
 1. Entropy
 2. Compression
 3. Error correction 
-
-Briefly in the area of entropy - topics include what is it,
-how it's defined, how to calculate it and its application. In
-the realm of compression - how the LZW and Huffman codes work.
-In the realm of error correction - how the Hamming 4->7 code
-works, for error correction and detection.
 
 Entropy
 -------
@@ -40,14 +43,14 @@ The question is really about "how many bits" to assign to each
 symbol. On the one hand it suffices to give every symbol a 
 unique code (let's say it's English text in ASCII encoding, so
 you use 7 bits per symbol). On the other hand, some symbols
-are rare ('z') and some are common ('e') so if you want to save
-bits on the medium, you can invent a variable length coding. 
+are rare ('z') and some are common ('e') so to save bits on the 
+medium, you can invent a variable length coding. 
 
-Entropy measures the average number of bits per symbol you need,
-(in the thoughtful approach to assigning symbols, where you give
-short codes to the common symbols, and longer codes to rare ones). 
-That's why I said it could have been called "cost", as in, it
-costs x bits per symbol, on average, to transmit in a certain system.
+Entropy quantifies the average number of bits per symbol needed to 
+transmit efficiently. Efficiently means by giving give short codes 
+to common symbols, and longer codes to rare ones.
+
++++`-sum_(i=1)^n p_ilog_2p_i`$+++
 
 Pause here. The system is characterized by the probability of
 each symbol. Entropy itself is purely a formula over this set
@@ -58,10 +61,10 @@ number of bits per symbol). You can also use this quantity to
 assess whether there is sufficient redundancy in the message
 to allow for error correction over a noisy channel.
 
-When we talk about transmitting a message, from here to there,
-we could instead say "from then to now" to borrow from Hamming.
-Files saved on to disk at one time and then read back later, 
-are to this theory the same as a transmitted message.
+We talk about sending a message from "here to there". As Hamming
+put it, we could instead send a message from "then to now". In
+other words, info theory applies to files saved on a disk and
+read back later, as well as to immediately transmitted messages.
 
 Individual messages (or files, if you prefer) can be used to 
 estimate the probability of each symbol of the underlying
@@ -70,18 +73,15 @@ occurences of each symbol, and divide by the total, to get
 the probability of that symbol. If we have a stream of bytes,
 and you calculate the probability of each byte in this way,
 you have a "first order" approximation (that is, each byte
-is considered a symbol). You could go on and consider each pair
-of bytes, or triplet of bytes, etc, as a symbol. Since some
-pairs, triplets, etc, may be more likely than others, you get
-a certain probability for each of the pair or triplet symbols.
-These are called second and third order approximations. If you
-compute entropy over them you get an average number of bits 
-needed per pair or triplet (etc). Shannon has some interesting
-results that (if I understand it right) there is a limit that
-makes this kind of higher order approximating unnecessary as
-long as you use a long enough sample for the first order 
-approximation (and as long as its ergodic or statistically
-the same over short and long regions, if I understand right).
+is considered a symbol). 
+
+You could go on and consider pairs of bytes, or triplet of bytes as the
+symbols.  These are called second and third order approximations. If you
+compute entropy over them you get an average number of bits needed to send
+a pair or triplet.  Shannon has some interesting results that (if I understand
+it right) make this kind of higher order approximation unnecessary as long as
+you use a long enough sample for the first order probability estimate (if the
+messages are ergodic, or statistically the same over short and long regions).
 
 So in this note, we:
 
