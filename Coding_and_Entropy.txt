@@ -1,0 +1,192 @@
+These are my notes from some topics in "information theory".
+
+Recommended books:
+* "Coding and Information Theory", Richard W. Hamming
+* "Silicon Dreams", Robert Lucky
+
+Topics:
+
+1. Entropy
+2. Compression
+3. Error correction 
+
+Briefly in the area of entropy - topics include what is it,
+how it's defined, how to calculate it and its application. In
+the realm of compression - how the LZW and Huffman codes work.
+In the realm of error correction - how the Hamming 4->7 code
+works, for error correction and detection.
+
+Entropy
+-------
+This mysterious-sounding word could have been called something
+like "cost" (as in "cost per symbol") and been less scary. It 
+is a quantity Claude Shannon defined his 1948 paper that measures
+information content of symbols in a message transmission system.
+
+Briefly the concept is that there is a message source, a medium
+of transmission and a message recipient. 
+
+The medium can either be noise-free or noisy (the latter leads
+to the topics of error correction, which turns out to have a 
+surprising result- basically that you can reduce errors to any
+degree if you carefully control the redundancy in the channel).
+
+The message source and the message recipient agree on an coding
+for the symbols they send and receive. In other words they 
+assign bit codes (maybe its ASCII, or whatever) to the symbols.
+The bit codes are what are transmitted over the medium. The
+choice of bit codes can either be done naively or thoughtfully. 
+The question is really about "how many bits" to assign to each
+symbol. On the one hand it suffices to give every symbol a 
+unique code (let's say it's English text in ASCII encoding, so
+you use 7 bits per symbol). On the other hand, some symbols
+are rare ('z') and some are common ('e') so if you want to save
+bits on the medium, you can invent a variable length coding. 
+
+Entropy measures the average number of bits per symbol you need,
+(in the thoughtful approach to assigning symbols, where you give
+short codes to the common symbols, and longer codes to rare ones). 
+That's why I said it could have been called "cost", as in, it
+costs x bits per symbol, on average, to transmit in a certain system.
+
+Pause here. The system is characterized by the probability of
+each symbol. Entropy itself is purely a formula over this set
+of probabilities. As it turns out, once you have this quantity
+you can then reason about "how much you can compress a given
+message" (that is, from say 7-bit ASCII to the most efficient
+number of bits per symbol). You can also use this quantity to
+assess whether there is sufficient redundancy in the message
+to allow for error correction over a noisy channel.
+
+When we talk about transmitting a message, from here to there,
+we could instead say "from then to now" to borrow from Hamming.
+Files saved on to disk at one time and then read back later, 
+are to this theory the same as a transmitted message.
+
+Individual messages (or files, if you prefer) can be used to 
+estimate the probability of each symbol of the underlying
+communication system. You can simply count the number of
+occurences of each symbol, and divide by the total, to get
+the probability of that symbol. If we have a stream of bytes,
+and you calculate the probability of each byte in this way,
+you have a "first order" approximation (that is, each byte
+is considered a symbol). You could go on and consider each pair
+of bytes, or triplet of bytes, etc, as a symbol. Since some
+pairs, triplets, etc, may be more likely than others, you get
+a certain probability for each of the pair or triplet symbols.
+These are called second and third order approximations. If you
+compute entropy over them you get an average number of bits 
+needed per pair or triplet (etc). Shannon has some interesting
+results that (if I understand it right) there is a limit that
+makes this kind of higher order approximating unnecessary as
+long as you use a long enough sample for the first order 
+approximation (and as long as its ergodic or statistically
+the same over short and long regions, if I understand right).
+
+So in this note, we:
+
+1. take a file, 
+2. get a first order probability of each symbol (byte)
+3. plug the probabilities into the entropy formula
+4. consider the meaning of the resulting entropy
+
+The file is considered a sample from the message stream. The
+probabilities it conveys, are considered to represent all the
+possible messages that occur over this messaging system.
+
+--
+--
+
+The file itself could be sorted, re-ordered, or permuted
+any which way, but our first order probability estimate 
+would remain the same. That is because we did not use any
+information about symbol pairs, etc, to make our estimate.
+
+Shannon defines conditional entropy as well. Without going
+into details, this applies if you know that certain symbols
+change the probabilities of succeeding symbols. His paper
+uses state machine diagrams. Transition arrows correspond to
+symbol emissions. Each arrow (symbol) has a probability. The
+presence of multiple states means that each state can have
+its own set of probabilities for each symbol. 
+
+'Maximal entropy' occurs when all symbols are equally likely.
+For bytes on modern computers (whose bytes are 8 bits), if
+messages are a byte stream of purely random bytes, it would
+take the full 8 bits per byte to transmit them. 
+
+--
+--
+
+'Relative entropy' is the source entropy over maximum entropy.
+If a stream of bytes has, say, an entropy of 3.81 bits per byte,
+and maximum entropy is 8 bits per byte, then its relative entropy 
+is 3.81/8 (about 0.48).
+
+You can view relative entropy as a maximum compression ratio. If
+you store the byte stream with 3.81 bits per byte by inventing a
+suitable encoding, instead of storing it with 8 bits per byte,
+it would be 48% percent smaller.
+
+--
+shlimit
+--
+
+The invention of suitable encodings for compression is up to us.
+The entropy only tells us how good the best encoding can be.
+
+'Redundancy' is defined by Shannon as 1 minus relative entropy.
+Relative entropy is a number between 0 and 1, so redundancy is too.
+
+Communications engineers talk about source and channel coding.
+The goal of source coding is to squash out redundancy. The goal
+of channel coding is to sprinkle useful redundancy back in. In
+other words, source encoding seeks to transmit at entropy- the
+most economical encoding. Channel coding then operates on the 
+source encoded data. It adds carefully constructed redundancy,
+designed to detect and correct the noise in a noisy channel.
+
+--
+Inventing compression schemes is an art. In Shannon's 1948 paper
+compression: entropy encoding, huffman, lzw,
+--
+
+Error correction
+----------------
+In a nutshell Shannon surprised us by finding that you could
+correct errors to an arbitrary degree in a noisy channel while
+still transmitting at a certain rate, by keeping the entropy 
+below the capacity of the channel. He had an insight that the
+noise in a channel can be thought of as another message system
+that conveys where the errors are in the original message stream. 
+You can then quantify the entropy of the error-correction system.
+So the "cost" of correcting the data (entropy of the correction 
+stream) has to be added to the original "cost" of transmitting
+the data (entropy of the source). If the channel is "how much
+you have", then the cost has to be kept less than it. (If the
+cost exceeds it, the noise is too much to correct). Otherwise
+any error-correction rate you want can be attained - say, one 
+symbol in a million, one in a billion, etc. The math says its 
+possible. Hamming and others have invented codes to this end.
+
+--
+hamming 4|7 correction
+hamming 4|8 correction and detection
+--
+
+Error correction is a deep topic, beyond my pay grade. The
+book "Coding and Information Theory" by Richard W. Hamming
+is useful for all these topics. 
+
+One of my take-aways about error correcting codes: 
+
+The valid codewords that replace the original bit sequences, 
+should be "further apart from each other" than from the 
+"nearest" corrupt codewords. In other words, when errors
+alter a codeword, there should only be one "good" (valid)
+codeword in the "neighborhood" so that it is possible to
+correct the error. Hamming talks about sphere packing.
+The math seems hard, and the really fancy codes that can
+correct tens of thousands of consecutive errors (e.g. Reed-
+Solomon) are based on highly abstract modern algebra.
+
