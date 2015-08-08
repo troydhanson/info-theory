@@ -1,7 +1,7 @@
 About
 -----
 
-Back up [parent page](http://troydhanson.github.io/info-theory/).
+Back up [parent page](../).
 
 Programs
 --------
@@ -25,8 +25,8 @@ Compute compression potential of a random stream of symbols with probability
 distribution (0.1, 0.2, 0.3, 0.4). Note that the probabilities given to mkpb
 are multiplied by ten and must sum to 100.
 
-  ./mkpb -c 10000 10 20 30 40 | ./rel
-
+> ./mkpb -c 10000 10 20 30 40 | ./rel
+>
 > E: Source entropy:         1.85 bits per byte
 > M: Max entropy:            8.00 bits per byte
 > R: Relative entropy (E/M): 23.07%
