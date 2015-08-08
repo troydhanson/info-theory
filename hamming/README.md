@@ -24,10 +24,9 @@ Because of its determinism it is reversible by repeating the command.
 
 Extended Hamming codes
 
-While the encoding above can correct one error in seven bits, it does
-not correct or detect two or more errors. We can add a parity bit. Then 
-we can correct one error among the 8 bits and detect the presence of a 
-second, uncorrectable error.
+The encoding above can correct one error in seven bits.  We can add a 
+parity bit. Then we can correct one error among the 8 bits and detect 
+the presence of a second, uncorrectable error.
 
     % echo "hello, world!" > original
     % ./ecc -x -i original -o encoded
