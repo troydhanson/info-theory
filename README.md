@@ -4,4 +4,4 @@ The programs here relate to my layman's
 
 This is C example code written primarily for Linux.
 
-* Calculate [entropy on bytes](http://troydhanson.github.io/info-theory/tree/master/entropy).
+* Tools to [compute entropy on byte streams](/entropy).
