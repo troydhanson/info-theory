@@ -26,8 +26,8 @@ Extended Hamming codes
 
 While the encoding above can correct one error in seven bits, it does
 not correct nor can it detect two or more errors. We can add a parity
-bit. This gives us the ability to correct one error among the 8 bits
-and lets us detect if a second, uncorrectable error occurred.
+bit. Then we can correct one error among the 8 bits and detect the 
+presence of a second, uncorrectable error.
 
     % echo "hello, world!" > original
     % ./ecc -x -i original -o encoded
