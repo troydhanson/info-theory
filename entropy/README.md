@@ -1,7 +1,7 @@
 About
 -----
 
-Back up [parent page](../).
+Back up [parent page](https://github.com/troydhanson/info-theory).
 
 Programs
 --------
