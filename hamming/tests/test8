@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# exit immediately if a command fails
+set -e
+#set -x
+
+RAWFILE=/tmp/raw.$$;
+ECCFILE=/tmp/ecc.$$;
+DECFILE=/tmp/dec.$$;
+NOSFILE=/tmp/nos.$$;
+ECC=../ecc
+
+if [ ! -x ${ECC} ]; then echo "run \"make\" first, then try again"; exit -1; fi
+
+echo "hello, world!" > ${RAWFILE}
+
+echo encoding...
+${ECC} -i ${RAWFILE} -o ${ECCFILE}
+echo adding excessive noise...
+${ECC} -nn -i ${ECCFILE} -o ${NOSFILE}
+echo decoding noisy file...without error detection
+${ECC} -d -i ${NOSFILE} -o ${DECFILE}
+echo resulting files:
+ls -lt ${RAWFILE} ${ECCFILE} ${NOSFILE} ${DECFILE}
+echo dumping hex:
+for f in ${RAWFILE} ${ECCFILE} ${NOSFILE} ${DECFILE}; do echo $f; hexdump -C $f; done
+echo diffing... expect undetected difference
+diff -q ${RAWFILE} ${DECFILE}
+#if [ $? -eq 0 ]; then rm ${RAWFILE} ${ECCFILE} ${NOSFILE} ${DECFILE}; fi
+echo done
