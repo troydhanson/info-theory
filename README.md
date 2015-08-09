@@ -2,7 +2,7 @@ Some information theory examples in C.
 
 Entropy 
 
-* [Entropy](/entropy) of a byte stream
+* [Entropy of a byte stream](/entropy)
 
 Error correction
 
