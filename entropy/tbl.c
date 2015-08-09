@@ -6,8 +6,7 @@
 #include <math.h>
  
 /*
- * Calculaty entropy on a stream. Entropy is updated for each symbol.
- * The final entropy is printed when the end of the stream occurs.
+ * Calculaty entropy on a stream. This program is table driven.
  */
 
 void usage(char *prog) {
