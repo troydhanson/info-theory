@@ -2,7 +2,7 @@
 
 /* call before encoding or decoding to determine the necessary
  * output buffer size to perform the (de-)encoding operation. */
-size_t huf_compute_olen( int mode, size_t ilen, size_t *ibits, size_t *obits) {
+size_t huf_compute_olen( int mode, size_t ilen, size_t *ibits, size_t *obits, symbol_stats *s) {
 
   if ((mode & MODE_ENCODE)) {
       *ibits = ilen * 8;
@@ -21,7 +21,7 @@ size_t huf_compute_olen( int mode, size_t ilen, size_t *ibits, size_t *obits) {
 /* 
  * 
  */ 
-int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob) {
+int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
   int rc=-1;
 
   if ((mode & MODE_ENCODE)) {

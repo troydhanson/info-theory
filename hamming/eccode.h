@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 /* standard bit vector macros */
-#define BIT_TEST(c,i)  (c[(i)/8] &   (1 << ((i) % 8)))
+#define BIT_TEST(c,i)  ((c[(i)/8] &   (1 << ((i) % 8))) ? 1 : 0)
 #define BIT_SET(c,i)   (c[(i)/8] |=  (1 << ((i) % 8)))
 #define BIT_CLEAR(c,i) (c[(i)/8] &= ~(1 << ((i) % 8)))
 

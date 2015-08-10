@@ -27,6 +27,8 @@ struct {
   unsigned char *obuf;
   size_t olen, obits;
 
+  symbol_stats s;
+
 } CF = {
   .mode = MODE_ENCODE,
 };
@@ -111,10 +113,10 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if (mmap_input() < 0) goto done;
 
-  CF.olen = huf_compute_olen(CF.mode, CF.ilen, &CF.ibits, &CF.obits);
+  CF.olen = huf_compute_olen(CF.mode, CF.ilen, &CF.ibits, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
 
-  rc = huf_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf);
+  rc = huf_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.s);
   if (rc) fprintf(stderr,"huf_recode error\n");
 
  done:
