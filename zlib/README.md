@@ -1,4 +1,7 @@
 zlib example
+------------
+
+Back up [parent page](https://github.com/troydhanson/info-theory).
 
 This code shows how to use the zlib C API. The documentation
 for the zlib C API is in the zlib.h header file. On Ubuntu 
