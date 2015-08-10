@@ -1,8 +1,10 @@
 Bloom filters
-=============
-Bloom filters (1970) are used to test set membership. When used to test a
-member, they give one of two outcomes- the member MAY be in the set or is
-definitely not in the set.
+-------------
+
+Back up [parent page](https://github.com/troydhanson/info-theory).
+
+Bloom filters (1970) are used to test set membership. When an item is tested,
+they indicate whether the item MAY be in the set or is definitely not in the set.
 
 If you have a large data set (say, a dictionary of all city names in a country), 
 and you want an efficient way to match on those words, and you are willing to
