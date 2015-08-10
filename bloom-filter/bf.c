@@ -115,7 +115,7 @@ int main(int argc, char * argv[]) {
   while (fgets(line,sizeof(line),tfilef) != NULL) {
     if (bf_hit(bf,line)) {
       hit++;
-      if (verbose>1) fprintf(stderr,"hit on %s\n", line);
+      if (verbose>1) fprintf(stderr,"hit on %s", line);
     } else {
       miss++;
     }

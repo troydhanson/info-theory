@@ -1,9 +1,8 @@
-all: bf
-bf: bf.c
-
-doc: bloom.txt
-	asciidoc $<
+PROGS= bf sat
+all: $(PROGS)
+bf: bf.c 
+sat: sat.c
 
 .PHONY: clean
 clean:
-	rm -f bf *.o
+	rm -f *.o $(PROGS)

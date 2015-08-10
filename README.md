@@ -1,8 +1,4 @@
-Some information theory examples in C.
-
-Entropy 
-
-* [Entropy of a byte stream](/entropy)
+Some examples relating to information theory in C.
 
 Error correction
 
@@ -13,3 +9,10 @@ Compression
 * [Shannon-Fano coding](/shannon-fano) 
 * [Huffman coding](/huffman) 
 * [LZW coding](/lzw) 
+* [zlib](/zlib) 
+
+And the rest
+
+* [Bloom filters](/bloom-filter) 
+* [Entropy](/entropy) 
+
