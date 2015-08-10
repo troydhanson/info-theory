@@ -1,7 +1,11 @@
 zlib example
 
-gz: a simple implementation of "gzip" using zlib's C API
-ungz: a simple "gunzip" implementation based on same API
+This code shows how to use the zlib C API. The documentation
+for the zlib C API is in the zlib.h header file. On Ubuntu 
+that is normally found in `/usr/include/zlib.h`.
+
+ * gz: a simple implementation of "gzip" 
+ * ungz: a simple "gunzip" implementation 
 
 You need to have zlib's development headers and library
 installed.  On Ubuntu you can get them like this:
@@ -12,5 +16,5 @@ Usage
 
 Run 'make' to build gz and ungz. Then:
 
-    gz somefile > somefile.gz
-    ungz somefile.gz
+    ./gz file > file.gz
+    ./ungz file.gz
