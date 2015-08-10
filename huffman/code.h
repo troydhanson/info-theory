@@ -14,7 +14,7 @@
 #define MODE_ENCODE     (1U << 0)
 #define MODE_DECODE     (1U << 1)
 
-int ecc_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob);
-size_t ecc_compute_olen(int mode, size_t ilen, size_t *ibits, size_t *obits);
+int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob);
+size_t huf_compute_olen(int mode, size_t ilen, size_t *ibits, size_t *obits);
 
 #endif /* _ECCODE_H_ */

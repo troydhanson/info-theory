@@ -111,11 +111,11 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if (mmap_input() < 0) goto done;
 
-  CF.olen = ecc_compute_olen(CF.mode, CF.ilen, &CF.ibits, &CF.obits);
+  CF.olen = huf_compute_olen(CF.mode, CF.ilen, &CF.ibits, &CF.obits);
   if (mmap_output() < 0) goto done;
 
-  rc = ecc_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf);
-  if (rc) fprintf(stderr,"ecc_recode error\n");
+  rc = huf_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf);
+  if (rc) fprintf(stderr,"huf_recode error\n");
 
  done:
   if (CF.ibuf) munmap(CF.ibuf, CF.ilen);
