@@ -1,5 +1,5 @@
-About
------
+Entropy
+-------
 
 Back up [parent page](https://github.com/troydhanson/info-theory).
 
@@ -19,26 +19,28 @@ Examples
 
 Compute entropy of a stream having two symbols in probabilities 1/3 and 2/3.
 
-    ./mkpb -c 10000 33 67 | ./ent
+    % ./mkpb -c 10000 33 67 | ./ent
     0.92 bits per byte
 
 Compute compression potential of a random stream of symbols with probability
 distribution (0.1, 0.2, 0.3, 0.4). Note that the probabilities given to mkpb
 are multiplied by ten and must sum to 100.
 
-    ./mkpb -c 10000 10 20 30 40 | ./rel
+    % ./mkpb -c 10000 10 20 30 40 | ./rel
     
     E: Source entropy:         1.85 bits per byte
     M: Max entropy:            8.00 bits per byte
     R: Relative entropy (E/M): 23.07%
     
     Original:          10000 bytes
-    Compressed:         2307 bytes
+    Compression to E:   2307 bytes
     Compression ratio: 4.3 to 1
 
-Compute entropy over 1000-byte chunks of random input.
+Run 'gzip' on a random stream of 1,000,000 bytes having those probabilities.
+Compare that to the compression possible according to first-order entropy E.
 
-    dd if=/dev/random bs=1 count=2000 | ./tbl
-    7.78 bits per byte
-    7.82 bits per byte
+    % ./mkpb -c 1000000 10 20 30 40 | gzip | wc -c
+    286324
+    % ./mkpb -c 1000000 10 20 30 40 | ./rel 
+    Compression to E:  230793 bytes
 

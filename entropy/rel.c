@@ -73,7 +73,7 @@ int main(int argc, char * argv[]) {
   printf("R: Relative entropy (E/M): %.2f%%\n", rel*100);
   printf("\n");
   printf("Original:          %5d bytes\n", total);
-  printf("Compressed:        %5d bytes\n", (int)(total*rel));
+  printf("Compression to E:  %5d bytes\n", (int)(total*rel));
   printf("Compression ratio: %.1f to 1\n", (8/sum));
   printf("\n");
   printf("Random data having symbol probabilities that match\n"
