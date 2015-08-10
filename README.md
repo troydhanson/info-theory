@@ -1,5 +1,8 @@
 Some examples relating to information theory in C.
 
+* [Bloom filters](/bloom-filter) 
+* [Entropy](/entropy) 
+
 Error correction
 
 * [Hamming codes](/hamming) 
@@ -10,9 +13,4 @@ Compression
 * [Huffman coding](/huffman) 
 * [LZW coding](/lzw) 
 * [zlib](/zlib) 
-
-And the rest
-
-* [Bloom filters](/bloom-filter) 
-* [Entropy](/entropy) 
 
