@@ -121,8 +121,10 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
       if (leaves[i].count > 0) LL_PREPEND(s->syms,&leaves[i]);
     }
     if (form_codes(s) < 0) goto done;
-    if (verbose) dump_codes(s);
-    for(i=0; i < ilen; i++) *obits += s->syms[ ib[i] ].code_length;
+    if (verbose) dump_codes(s); // this could just take leaves. elide the code length=0 ones. TODO
+      // TODO that also means we can eliminate the janky prepend inside the recursion
+      // the leaves shold be in s so we can free them up later TODO
+    for(i=0; i < ilen; i++) *obits += leaves[ ib[i] ].code_length;
   }
 
   if ((mode & MODE_DECODE)) {
