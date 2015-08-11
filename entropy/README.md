@@ -8,7 +8,8 @@ Programs
 
 The C programs here can be built by typing 'make'. These are:
 
-* ent:  compute entropy of input
+* ent: compute first-order (byte) entropy of input
+* eo2: compute second-order (digram) entropy of input
 * rel:  compute relative entropy and compression potential of input
 * tbl:  compute entropy of input in 1000-byte chunks, using log table
 * mkpb: outputs a stream of bytes with a given probabilities e.g. 90/10

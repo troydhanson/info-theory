@@ -1,10 +1,13 @@
 CFLAGS = -g
-OBJS = ent tbl rel mkpb 
+OBJS = ent eo2 tbl rel mkpb 
 MATH = -lm
 
 all: $(OBJS) $(DOC)
 
 ent: ent.c
+	$(CC) $(CFLAGS) -o $@ $< $(MATH)
+
+eo2: eo2.c
 	$(CC) $(CFLAGS) -o $@ $< $(MATH)
 
 tbl: tbl.c
