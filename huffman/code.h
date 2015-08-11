@@ -15,7 +15,7 @@ struct sym {
     } n;
   };
   unsigned char code_length;
-  unsigned int  code;
+  unsigned long code;
   struct sym *next;
 };
 
@@ -33,7 +33,9 @@ typedef struct {
 #define MODE_ENCODE     (1U << 0)
 #define MODE_DECODE     (1U << 1)
 
-int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s);
-size_t huf_compute_olen(int mode, size_t ilen, size_t *ibits, size_t *obits, symbol_stats *s);
+int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
+               symbol_stats *s);
+size_t huf_compute_olen(int mode, unsigned char *ib, size_t ilen, 
+               size_t *ibits, size_t *obits, symbol_stats *s, int verbose);
 
 #endif /* _HCCODE_H_ */

@@ -35,7 +35,7 @@ struct {
 
 
 void usage() {
-  fprintf(stderr,"usage: %s -e|d -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"usage: %s [-v] -e|d -i <file> -o <file>\n", CF.prog);
   fprintf(stderr,"          -e (encode) [default]\n");
   fprintf(stderr,"          -d (decode)\n");
   exit(-1);
@@ -113,7 +113,8 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if (mmap_input() < 0) goto done;
 
-  CF.olen = huf_compute_olen(CF.mode, CF.ilen, &CF.ibits, &CF.obits, &CF.s);
+  CF.olen = huf_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.ibits, &CF.obits,
+                             &CF.s, CF.verbose);
   if (mmap_output() < 0) goto done;
 
   rc = huf_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.s);
