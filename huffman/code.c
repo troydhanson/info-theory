@@ -7,13 +7,14 @@
 static void dump_codes(symbol_stats *s) {
   unsigned char l;
   unsigned long code;
-  size_t i;
+  struct sym *sym;
 
-  for(i=0; i < 256; i++) {
-    l = s->syms[i].code_length;
-    code = s->syms[i].code;
+  LL_FOREACH(s->syms, sym) {
+    assert(sym->is_leaf);
+    l = sym->code_length;
+    code = sym->code;
 
-    fprintf(stderr,"0x%02x ", (int)i);
+    fprintf(stderr,"0x%02x ", (int)sym->leaf_value);
     while(l--) fprintf(stderr, "%c", ((code >> l) & 1) ? '1' : '0');
     fprintf(stderr,"\n");
   }
@@ -29,10 +30,13 @@ void assign_recursive(symbol_stats *s, struct sym *root,
   root->code = code;
   root->code_length = code_length;
 
-  if (root->is_leaf) return;
+  if (root->is_leaf) {
+    LL_PREPEND(s->syms, root);
+    return;
+  }
 
-  assign_recursive(s, root->n.a, (code << 1U) & 0x0, code_length + 1);
-  assign_recursive(s, root->n.b, (code << 1U) & 0x1, code_length + 1);
+  assign_recursive(s, root->n.a, (code << 1U) | 0x0, code_length + 1);
+  assign_recursive(s, root->n.b, (code << 1U) | 0x1, code_length + 1);
   free(root);
 }
 
@@ -53,10 +57,9 @@ static int frequency_sort(struct sym *a, struct sym *b) {
  * code is all its ancestor bitcodes prepended to its own.
  */ 
 static int form_codes(symbol_stats *s) {
-  struct sym *tmp, *a, *b, *c, *first_leaf;
+  struct sym *tmp, *a, *b, *c;
   size_t num_nodes;
   int rc=-1;
-  first_leaf = s->syms; 
 
   do {
     LL_SORT(s->syms, frequency_sort);
@@ -82,7 +85,7 @@ static int form_codes(symbol_stats *s) {
   assert(num_nodes == 2);
   a = s->syms;
   b = s->syms->next;
-  s->syms = first_leaf;
+  s->syms = NULL;
   assign_recursive(s,a,1,1);
   assign_recursive(s,b,0,1);
   rc = 0;
@@ -108,14 +111,15 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     *ibits = ilen * 8;
     *obits = 0;
 
-    s->syms = calloc(256, sizeof(struct sym)); // TODO release at end of program
-    if (s->syms == NULL) { fprintf(stderr,"oom\n"); goto done; }
+    struct sym *leaves = calloc(256, sizeof(struct sym)); // TODO release at end of program
+    if (leaves == NULL) { fprintf(stderr,"oom\n"); goto done; }
+    for(i=0; i < ilen; i++) leaves[ ib[i] ].count++;
+    s->syms = NULL;
     for(i=0; i < 256; i++) {
-      s->syms[i].is_leaf = 1;
-      s->syms[i].leaf_value = i;
-      s->syms[i].next = (i < 255) ? &s->syms[i+1] : NULL;
+      leaves[i].is_leaf = 1;
+      leaves[i].leaf_value = i;
+      if (leaves[i].count > 0) LL_PREPEND(s->syms,&leaves[i]);
     }
-    for(i=0; i < ilen; i++) s->syms[ ib[i] ].count++;
     if (form_codes(s) < 0) goto done;
     if (verbose) dump_codes(s);
     for(i=0; i < ilen; i++) *obits += s->syms[ ib[i] ].code_length;
