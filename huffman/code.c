@@ -84,11 +84,15 @@ static void form_codes(symbol_stats *s) {
   assign_recursive(s,b,0,1);
 }
 
-static void form_header(symbol_stats *s) {
+static void form_header(symbol_stats *s, size_t ilen) {
   unsigned char l, *c;
   unsigned long code;
   struct sym *sym;
   size_t i,j,h;
+
+  /* copy size of decoded buffer into header */
+  memcpy(s->header, &ilen, sizeof(ilen));
+  s->header_len = sizeof(size_t); 
 
   for(i=0; i < 256; i++) {
     sym = &s->sym_all[i];
@@ -142,7 +146,7 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     }
 
     form_codes(s);
-    form_header(s);
+    form_header(s,ilen);
 
     /* restore syms to the array head so we can index into */
     if (verbose) dump_codes(s); 
@@ -151,8 +155,11 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
   }
 
   if ((mode & MODE_DECODE)) {
-      *ibits = (ilen*8) - ((ilen*8) % 7);
-      *obits = (*ibits/7) * 4;
+    memset(s, 0, sizeof(*s));
+    *ibits = ilen * 8;
+    *obits = 0;
+
+    /* try to read the code table */
   }
 
   olen = (*obits/8) + ((*obits % 8) ? 1 : 0);
