@@ -4,6 +4,8 @@
 
 #include <stddef.h>
 
+#define adim(x) (sizeof(x)/sizeof(*(x)))
+
 struct sym {
   int is_leaf;
   size_t count;
@@ -20,7 +22,9 @@ struct sym {
 };
 
 typedef struct {
-  struct sym *syms;
+  struct sym *syms; /* working set of top level symbols */
+  size_t sym_take;  /* index of next free sym in sym_all */
+  struct sym sym_all[256*2];
 } symbol_stats;
 
 /* standard bit vector macros */

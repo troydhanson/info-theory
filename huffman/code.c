@@ -8,11 +8,13 @@ static void dump_codes(symbol_stats *s) {
   unsigned char l;
   unsigned long code;
   struct sym *sym;
+  size_t i;
 
-  LL_FOREACH(s->syms, sym) {
-    assert(sym->is_leaf);
-    l = sym->code_length;
+  for(i=0; i < 256; i++) {
+    sym = &s->syms[i];
     code = sym->code;
+    l = sym->code_length;
+    if (l == 0) continue;
 
     fprintf(stderr,"0x%02x ", (int)sym->leaf_value);
     while(l--) fprintf(stderr, "%c", ((code >> l) & 1) ? '1' : '0');
@@ -30,20 +32,21 @@ void assign_recursive(symbol_stats *s, struct sym *root,
   root->code = code;
   root->code_length = code_length;
 
-  if (root->is_leaf) {
-    LL_PREPEND(s->syms, root);
-    return;
-  }
+  if (root->is_leaf) return;
 
   assign_recursive(s, root->n.a, (code << 1U) | 0x0, code_length + 1);
   assign_recursive(s, root->n.b, (code << 1U) | 0x1, code_length + 1);
-  free(root);
 }
 
 /* this sorts the least frequent symbols to the front of the list */
 static int frequency_sort(struct sym *a, struct sym *b) {
   if (a->count < b->count) return -1;
   if (a->count > b->count) return  1;
+  /* for equal frequency symbols we sort the leaf
+     ones to the front of the list. this shortens the
+     average code lengths by creating less deep trees */
+  if  (a->is_leaf && !b->is_leaf) return -1;
+  if (!a->is_leaf &&  b->is_leaf) return  1;
   return 0;
 }
 
@@ -56,10 +59,9 @@ static int frequency_sort(struct sym *a, struct sym *b) {
  * followed and assigned bits in the same way, recursing.  An item's 
  * code is all its ancestor bitcodes prepended to its own.
  */ 
-static int form_codes(symbol_stats *s) {
+static void form_codes(symbol_stats *s) {
   struct sym *tmp, *a, *b, *c;
   size_t num_nodes;
-  int rc=-1;
 
   do {
     LL_SORT(s->syms, frequency_sort);
@@ -67,31 +69,19 @@ static int form_codes(symbol_stats *s) {
     b = s->syms->next;
     LL_DELETE(s->syms, a);
     LL_DELETE(s->syms, b);
-    c = calloc(1, sizeof(struct sym));
-    if (c == NULL) { fprintf(stderr,"oom\n"); goto done; }
+    assert(s->sym_take < adim(s->sym_all));
+    c = &s->sym_all[ s->sym_take++ ];
     c->count = a->count + b->count;
     c->n.a = a;
     c->n.b = b;
     LL_PREPEND(s->syms, c);
     LL_COUNT(s->syms, tmp, num_nodes);
-#if 0
-    fprintf(stderr,"iteration %d\n", iteration++);
-    LL_FOREACH(s->syms, tmp) {
-      fprintf(stderr, "  is_leaf %d (%u) count: %lu\n", tmp->is_leaf, tmp->is_leaf ? tmp->leaf_value : 0, tmp->count);
-    }
-#endif
   } while(num_nodes > 2);
 
-  assert(num_nodes == 2);
   a = s->syms;
   b = s->syms->next;
-  s->syms = NULL;
   assign_recursive(s,a,1,1);
   assign_recursive(s,b,0,1);
-  rc = 0;
-
- done:
-  return rc;
 }
 
 /* header is all code lengths (256 chars) then codes (256 ints). TODO
@@ -105,26 +95,36 @@ static int form_codes(symbol_stats *s) {
 size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *ibits, size_t *obits, symbol_stats *s, int verbose) {
   size_t i, olen = 0;
+  struct sym *sym, *tmp;
 
   if ((mode & MODE_ENCODE)) {
     memset(s, 0, sizeof(*s));
     *ibits = ilen * 8;
     *obits = 0;
 
-    struct sym *leaves = calloc(256, sizeof(struct sym)); // TODO release at end of program
-    if (leaves == NULL) { fprintf(stderr,"oom\n"); goto done; }
-    for(i=0; i < ilen; i++) leaves[ ib[i] ].count++;
-    s->syms = NULL;
+    /* take the first 256 syms for the leaf nodes (bytes) */
+    s->sym_take = 256;
+    s->syms = s->sym_all;
     for(i=0; i < 256; i++) {
-      leaves[i].is_leaf = 1;
-      leaves[i].leaf_value = i;
-      if (leaves[i].count > 0) LL_PREPEND(s->syms,&leaves[i]);
+      s->syms[i].is_leaf = 1;
+      s->syms[i].leaf_value = i;
+      s->syms[i].next = (i < 255) ? &s->syms[i+1] : NULL;
     }
-    if (form_codes(s) < 0) goto done;
-    if (verbose) dump_codes(s); // this could just take leaves. elide the code length=0 ones. TODO
-      // TODO that also means we can eliminate the janky prepend inside the recursion
-      // the leaves shold be in s so we can free them up later TODO
-    for(i=0; i < ilen; i++) *obits += leaves[ ib[i] ].code_length;
+
+    /* count the frequency of each byte in the input */
+    for(i=0; i < ilen; i++) s->syms[ ib[i] ].count++;
+
+    /* remove symbols with zero counts from the code */
+    LL_FOREACH_SAFE(s->syms, sym, tmp) {
+      if (sym->count == 0) LL_DELETE(s->syms,sym);
+    }
+
+    form_codes(s);
+
+    /* restore syms to the array head so we can index into */
+    s->syms = s->sym_all;
+    if (verbose) dump_codes(s); 
+    for(i=0; i < ilen; i++) *obits += s->syms[ ib[i] ].code_length;
   }
 
   if ((mode & MODE_DECODE)) {
@@ -134,7 +134,6 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
 
   olen = (*obits/8) + ((*obits % 8) ? 1 : 0);
 
- done:
   return olen;
 }
 
