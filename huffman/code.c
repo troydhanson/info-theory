@@ -175,10 +175,10 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
  * 
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
+  unsigned char *o=ob, *i=ib, *imax = ib+ilen, nsyms, b, l, *c, lbytes;
+  size_t j,p,olen;
   unsigned long code;
-  unsigned char *o=ob;
   struct sym *sym;
-  size_t i,l,j=0;
   int rc=-1;
 
   if ((mode & MODE_ENCODE)) {
@@ -186,22 +186,61 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
     memcpy(o, s->header, s->header_len);
     o += s->header_len;
 
-    for(i=0; i < ilen; i++) {
-      sym = &s->sym_all[ ib[i] ];
+    p = 0;
+    for(j=0; j < ilen; j++) {
+      sym = &s->sym_all[ ib[j] ];
       code = sym->code;
       l = sym->code_length;
       while(l--) {
-        if ((code >> l) & 1) BIT_SET(o,j);
-        j++;
+        if ((code >> l) & 1) BIT_SET(o,p);
+        p++;
       }
     }
   }
 
   if ((mode & MODE_DECODE)) {
+
+    /* initialize the leaf part of the symbol stats */
+    for(j=0; j < 256; j++) {
+      s->sym_all[j].is_leaf = 1;
+      s->sym_all[j].leaf_value = j;
+    }
+
+    /* from header get size of decoded buffer */
+    if (i + sizeof(olen) > imax) goto done;
+    memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
+
+    /* from header get number of symbol codes */
+    if (i + sizeof(char) > imax) goto done;
+    nsyms = *i; i++;
+
+    /* from header get symbol codes */
+    for(j=0; j < nsyms; j++) {
+      if (i + 2*sizeof(char) > imax) goto done;
+      b = *i; i++;  /* symbol (byte value) */
+      l = *i; i++;  /* bit length of its code */
+      c = i;        /* beginning of bit code */
+
+      s->sym_all[b].code_length = l;
+      lbytes = l/8 + ((l%8) ? 1 : 0);
+      if (i + lbytes > imax) goto done;
+      i += lbytes;
+
+      p = 0;
+      code = 0;
+      while(l--) {
+        if (BIT_TEST(c,p)) code |= (1U << l);
+        p++;
+      }
+      s->sym_all[b].code = code;
+    }
+
+    /* from buffer decode til reach decoded size */
   }
 
   rc = 0;
 
+ done:
   return rc;
 }
 
