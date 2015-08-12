@@ -85,7 +85,7 @@ static void form_codes(symbol_stats *s) {
 }
 
 static void form_header(symbol_stats *s, size_t ilen) {
-  unsigned char l, *c;
+  unsigned char l, *c, *nsyms;
   unsigned long code;
   struct sym *sym;
   size_t i,j,h;
@@ -94,11 +94,16 @@ static void form_header(symbol_stats *s, size_t ilen) {
   memcpy(s->header, &ilen, sizeof(ilen));
   s->header_len = sizeof(size_t); 
 
+  /* number of symbols coming next */
+  nsyms = &s->header[s->header_len++];
+
+  /* for each symbol with count > 0, sym|l|code */
   for(i=0; i < 256; i++) {
     sym = &s->sym_all[i];
     code = sym->code;
     l = sym->code_length;
     if (l == 0) continue;
+    (*nsyms)++;
 
     h = s->header_len;
     s->header_len += 1 + 1 + l/8 + ((l%8) ? 1 : 0);
@@ -155,11 +160,13 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
   }
 
   if ((mode & MODE_DECODE)) {
+    memcpy(&olen, ib, sizeof(olen));
+    *obits = olen * 8;
     memset(s, 0, sizeof(*s));
-    *ibits = ilen * 8;
-    *obits = 0;
 
-    /* try to read the code table */
+    *ibits = ilen * 8; // may be less. TODO
+
+    /* restore symbol stats */
   }
 
   olen = (*obits/8) + ((*obits % 8) ? 1 : 0);
