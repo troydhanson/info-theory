@@ -84,8 +84,7 @@ static void form_codes(symbol_stats *s) {
   assign_recursive(s,b,0,1);
 }
 
-/* header is all code lengths (256 chars) then codes (256 ints). TODO
- * we'd use a tighter header but it'd just complicate this example */
+/* header is all code lengths (256 chars) then codes (256 ints). */
 #define header_len (    sizeof(size_t) +         \
                     256*sizeof(unsigned char) +  \
                     256*sizeof(unsigned long))
@@ -125,6 +124,7 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     s->syms = s->sym_all;
     if (verbose) dump_codes(s); 
     for(i=0; i < ilen; i++) *obits += s->syms[ ib[i] ].code_length;
+    *obits += header_len*8;
   }
 
   if ((mode & MODE_DECODE)) {
@@ -141,9 +141,22 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
  * 
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
+  unsigned long code;
+  struct sym *sym;
+  size_t i,l,o=0;
   int rc=-1;
 
   if ((mode & MODE_ENCODE)) {
+    /* TODO add header */
+    for(i=0; i < ilen; i++) {
+      sym = &s->syms[ ib[i] ];
+      code = sym->code;
+      l = sym->code_length;
+      while(l--) {
+        if ((code >> l) & 1) BIT_SET(ob,o);
+        o++;
+      }
+    }
   }
 
   if ((mode & MODE_DECODE)) {
