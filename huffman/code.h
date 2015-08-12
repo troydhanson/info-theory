@@ -25,6 +25,8 @@ typedef struct {
   struct sym *syms; /* working set of top level symbols */
   size_t sym_take;  /* index of next free sym in sym_all */
   struct sym sym_all[256*2];
+  size_t header_len;
+  unsigned char header[256*(1+1+sizeof(long))]; /* max */
 } symbol_stats;
 
 /* standard bit vector macros */

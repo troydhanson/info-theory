@@ -11,7 +11,7 @@ static void dump_codes(symbol_stats *s) {
   size_t i;
 
   for(i=0; i < 256; i++) {
-    sym = &s->syms[i];
+    sym = &s->sym_all[i];
     code = sym->code;
     l = sym->code_length;
     if (l == 0) continue;
@@ -84,10 +84,33 @@ static void form_codes(symbol_stats *s) {
   assign_recursive(s,b,0,1);
 }
 
-/* header is all code lengths (256 chars) then codes (256 ints). */
-#define header_len (    sizeof(size_t) +         \
-                    256*sizeof(unsigned char) +  \
-                    256*sizeof(unsigned long))
+static void form_header(symbol_stats *s) {
+  unsigned char l, *c;
+  unsigned long code;
+  struct sym *sym;
+  size_t i,j,h;
+
+  for(i=0; i < 256; i++) {
+    sym = &s->sym_all[i];
+    code = sym->code;
+    l = sym->code_length;
+    if (l == 0) continue;
+
+    h = s->header_len;
+    s->header_len += 1 + 1 + l/8 + ((l%8) ? 1 : 0);
+    assert(s->header_len <= sizeof(s->header));
+    s->header[h++] = sym->leaf_value;
+    s->header[h++] = sym->code_length;
+
+    c = &s->header[h];
+    j = 0;
+
+    while(l--) {
+      if ((code >> l) & 1) BIT_SET(c,j); 
+      j++;
+    }
+  }
+}
 
 /* call before encoding or decoding to determine the necessary
  * output buffer size to perform the (de-)encoding operation. */
@@ -105,13 +128,13 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     s->sym_take = 256;
     s->syms = s->sym_all;
     for(i=0; i < 256; i++) {
-      s->syms[i].is_leaf = 1;
-      s->syms[i].leaf_value = i;
-      s->syms[i].next = (i < 255) ? &s->syms[i+1] : NULL;
+      s->sym_all[i].is_leaf = 1;
+      s->sym_all[i].leaf_value = i;
+      s->sym_all[i].next = (i < 255) ? &s->sym_all[i+1] : NULL;
     }
 
     /* count the frequency of each byte in the input */
-    for(i=0; i < ilen; i++) s->syms[ ib[i] ].count++;
+    for(i=0; i < ilen; i++) s->sym_all[ ib[i] ].count++;
 
     /* remove symbols with zero counts from the code */
     LL_FOREACH_SAFE(s->syms, sym, tmp) {
@@ -119,12 +142,12 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     }
 
     form_codes(s);
+    form_header(s);
 
     /* restore syms to the array head so we can index into */
-    s->syms = s->sym_all;
     if (verbose) dump_codes(s); 
-    for(i=0; i < ilen; i++) *obits += s->syms[ ib[i] ].code_length;
-    *obits += header_len*8;
+    for(i=0; i < ilen; i++) *obits += s->sym_all[ ib[i] ].code_length;
+    *obits += s->header_len*8;
   }
 
   if ((mode & MODE_DECODE)) {
@@ -149,7 +172,7 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
   if ((mode & MODE_ENCODE)) {
     /* TODO add header */
     for(i=0; i < ilen; i++) {
-      sym = &s->syms[ ib[i] ];
+      sym = &s->sym_all[ ib[i] ];
       code = sym->code;
       l = sym->code_length;
       while(l--) {
