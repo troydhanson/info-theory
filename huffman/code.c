@@ -165,19 +165,23 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
   unsigned long code;
+  unsigned char *o=ob;
   struct sym *sym;
-  size_t i,l,o=0;
+  size_t i,l,j=0;
   int rc=-1;
 
   if ((mode & MODE_ENCODE)) {
-    /* TODO add header */
+
+    memcpy(o, s->header, s->header_len);
+    o += s->header_len;
+
     for(i=0; i < ilen; i++) {
       sym = &s->sym_all[ ib[i] ];
       code = sym->code;
       l = sym->code_length;
       while(l--) {
-        if ((code >> l) & 1) BIT_SET(ob,o);
-        o++;
+        if ((code >> l) & 1) BIT_SET(o,j);
+        j++;
       }
     }
   }
