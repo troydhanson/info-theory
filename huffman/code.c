@@ -160,13 +160,10 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
   }
 
   if ((mode & MODE_DECODE)) {
-    memcpy(&olen, ib, sizeof(olen));
+    /* read decoded buffer length */
+    if (ilen >= sizeof(olen)) memcpy(&olen, ib, sizeof(olen));
     *obits = olen * 8;
-    memset(s, 0, sizeof(*s));
-
-    *ibits = ilen * 8; // may be less. TODO
-
-    /* restore symbol stats */
+    *ibits = ilen * 8;
   }
 
   olen = (*obits/8) + ((*obits % 8) ? 1 : 0);
