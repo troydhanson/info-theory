@@ -128,8 +128,8 @@ static void form_header(symbol_stats *s) {
  * output buffer size to perform the (de-)encoding operation. */
 size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *ibits, size_t *obits, symbol_stats *s, int verbose) {
-  size_t i, olen = 0;
   struct sym *sym, *tmp;
+  size_t j, olen = 0;
 
   if ((mode & MODE_ENCODE)) {
     memset(s, 0, sizeof(*s));
@@ -139,14 +139,14 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     /* take the first 256 syms for the leaf nodes (bytes) */
     s->sym_take = 256;
     s->syms = s->sym_all;
-    for(i=0; i < 256; i++) {
-      s->sym_all[i].is_leaf = 1;
-      s->sym_all[i].leaf_value = i;
-      s->sym_all[i].next = (i < 255) ? &s->sym_all[i+1] : NULL;
+    for(j=0; j < 256; j++) {
+      s->sym_all[j].is_leaf = 1;
+      s->sym_all[j].leaf_value = j;
+      s->sym_all[j].next = (j < 255) ? &s->sym_all[j+1] : NULL;
     }
 
     /* count the frequency of each byte in the input */
-    for(i=0; i < ilen; i++) s->sym_all[ ib[i] ].count++;
+    for(j=0; j < ilen; j++) s->sym_all[ ib[j] ].count++;
 
     /* remove symbols with zero counts from the code */
     LL_FOREACH_SAFE(s->syms, sym, tmp) {
@@ -156,7 +156,8 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     form_codes(s);
     form_header(s);
     if (verbose) dump_codes(s); 
-    for(i=0; i < ilen; i++) *obits += s->sym_all[ ib[i] ].code_length;
+    for(j=0; j < ilen; j++) *obits += s->sym_all[ ib[j] ].code_length;
+    *obits += sizeof(olen)*8;
     *obits += s->header_len*8;
   }
 
@@ -190,7 +191,7 @@ int is_code(unsigned long code, size_t len, unsigned char *decode, symbol_stats 
  * the core work is done here, either encoding or decoding
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
-  unsigned char *o=ob, *i=ib, *imax = ib+ilen, nsyms, b, l, *w, lbytes, d;
+  unsigned char *o=ob, *i=ib, *eib = ib+ilen, nsyms, b, l, *w, lbytes, d;
   size_t j,p,olen;
   unsigned long c;
   struct sym *sym;
@@ -198,11 +199,11 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
 
   if ((mode & MODE_ENCODE)) {
 
-    memcpy(o, s->header, s->header_len);
-    o += s->header_len;
-
     memcpy(o, &ilen, sizeof(ilen));
     o += sizeof(ilen);
+
+    memcpy(o, s->header, s->header_len);
+    o += s->header_len;
 
     p = 0;
     for(j=0; j < ilen; j++) {
@@ -218,23 +219,27 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
 
   if ((mode & MODE_DECODE)) {
 
+    /* from header get size of decoded buffer */
+    if (i + sizeof(olen) > eib) goto done;
+    memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
+
     /* initialize the leaf nodes we use in decoding */
     for(j=0; j < 256; j++) s->sym_all[j].leaf_value = j;
 
     /* from header get number of symbol codes */
-    if (i + sizeof(char) > imax) goto done;
+    if (i + sizeof(char) > eib) goto done;
     nsyms = *i; i++;
 
     /* from header get symbol codes */
     for(j=0; j < nsyms; j++) {
-      if (i + 2*sizeof(char) > imax) goto done;
+      if (i + 2*sizeof(char) > eib) goto done;
       b = *i; i++;  /* symbol (byte value) */
       l = *i; i++;  /* bit length of its code */
       w = i;        /* beginning of bit code */
 
       s->sym_all[b].code_length = l;
       lbytes = l/8 + ((l%8) ? 1 : 0);
-      if (i + lbytes > imax) goto done;
+      if (i + lbytes > eib) goto done;
       i += lbytes;
 
       p = 0;
@@ -246,10 +251,6 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
       s->sym_all[b].code = c;
     }
 
-    /* from header get size of decoded buffer */
-    if (i + sizeof(olen) > imax) goto done;
-    memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
-
     /* sort the code table short-to-long before decompressing */
     qsort(s->sym_all, 256, sizeof(*s->sym_all), decoder_sort);
 
@@ -258,7 +259,7 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
     l = 0; /* length of code word */
     c = 0; /* code word */
     while((o - ob) < olen) {
-      if ((i + p/8) >= (ib + ilen)) goto done;
+      if ((i + p/8) >= eib) goto done;
       l++;
       c |= BIT_TEST(i,p);
       if (is_code(c,l,&d,s)) { *o = d; o++; c = 0; l = 0; }
