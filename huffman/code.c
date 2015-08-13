@@ -22,8 +22,7 @@ static void dump_codes(symbol_stats *s) {
   }
 }
 
-/* assign a Huffman code by recursing depth-first. a regular iterative
- * routine is preferable; at least the recursion is bounded by assert. */
+/* assign a Huffman code by recursing depth-first. */
 void assign_recursive(symbol_stats *s, struct sym *root, 
                       unsigned long code, unsigned char code_length) {
 
@@ -38,13 +37,21 @@ void assign_recursive(symbol_stats *s, struct sym *root,
   assign_recursive(s, root->n.b, (code << 1U) | 0x1, code_length + 1);
 }
 
+/* sort the code table short-to-long before decoding */
+static int decoder_sort(const void *_a, const void *_b) {
+  struct sym *a = (struct sym*)_a, *b = (struct sym*)_b;
+  if (a->code_length < b->code_length) return -1;
+  if (a->code_length > b->code_length) return  1;
+  return 0;
+}
+
 /* this sorts the least frequent symbols to the front of the list */
 static int frequency_sort(struct sym *a, struct sym *b) {
   if (a->count < b->count) return -1;
   if (a->count > b->count) return  1;
-  /* for equal frequency symbols we sort the leaf
-     ones to the front of the list. this shortens the
-     average code lengths by creating less deep trees */
+  /* for equal frequency symbols we sort the leaf symbols 
+     to the front of the list. this shortens the average 
+     code lengths by creating less deep trees */
   if  (a->is_leaf && !b->is_leaf) return -1;
   if (!a->is_leaf &&  b->is_leaf) return  1;
   return 0;
@@ -84,15 +91,11 @@ static void form_codes(symbol_stats *s) {
   assign_recursive(s,b,0,1);
 }
 
-static void form_header(symbol_stats *s, size_t ilen) {
+static void form_header(symbol_stats *s) {
   unsigned char l, *c, *nsyms;
   unsigned long code;
   struct sym *sym;
   size_t i,j,h;
-
-  /* copy size of decoded buffer into header */
-  memcpy(s->header, &ilen, sizeof(ilen));
-  s->header_len = sizeof(size_t); 
 
   /* number of symbols coming next */
   nsyms = &s->header[s->header_len++];
@@ -151,9 +154,7 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
     }
 
     form_codes(s);
-    form_header(s,ilen);
-
-    /* restore syms to the array head so we can index into */
+    form_header(s);
     if (verbose) dump_codes(s); 
     for(i=0; i < ilen; i++) *obits += s->sym_all[ ib[i] ].code_length;
     *obits += s->header_len*8;
@@ -171,13 +172,27 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
   return olen;
 }
 
+/* given a potential code of "len" bits, check whether it is a 
+ * code; if so, store the byte it decodes to in decode and return 1.
+ */
+int is_code(unsigned long code, size_t len, unsigned char *decode, symbol_stats *s) {
+  size_t i;
+  for(i=0; i < 256; i++) {
+    if (s->sym_all[i].code_length != len) continue;
+    if (s->sym_all[i].code != code) continue;
+    *decode = s->sym_all[i].leaf_value;
+    return 1;
+  }
+  return 0;
+}
+
 /* 
- * 
+ * the core work is done here, either encoding or decoding
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
-  unsigned char *o=ob, *i=ib, *imax = ib+ilen, nsyms, b, l, *c, lbytes;
+  unsigned char *o=ob, *i=ib, *imax = ib+ilen, nsyms, b, l, *w, lbytes, d;
   size_t j,p,olen;
-  unsigned long code;
+  unsigned long c;
   struct sym *sym;
   int rc=-1;
 
@@ -186,13 +201,16 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
     memcpy(o, s->header, s->header_len);
     o += s->header_len;
 
+    memcpy(o, &ilen, sizeof(ilen));
+    o += sizeof(ilen);
+
     p = 0;
     for(j=0; j < ilen; j++) {
       sym = &s->sym_all[ ib[j] ];
-      code = sym->code;
+      c = sym->code;
       l = sym->code_length;
       while(l--) {
-        if ((code >> l) & 1) BIT_SET(o,p);
+        if ((c >> l) & 1) BIT_SET(o,p);
         p++;
       }
     }
@@ -200,15 +218,8 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
 
   if ((mode & MODE_DECODE)) {
 
-    /* initialize the leaf part of the symbol stats */
-    for(j=0; j < 256; j++) {
-      s->sym_all[j].is_leaf = 1;
-      s->sym_all[j].leaf_value = j;
-    }
-
-    /* from header get size of decoded buffer */
-    if (i + sizeof(olen) > imax) goto done;
-    memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
+    /* initialize the leaf nodes we use in decoding */
+    for(j=0; j < 256; j++) s->sym_all[j].leaf_value = j;
 
     /* from header get number of symbol codes */
     if (i + sizeof(char) > imax) goto done;
@@ -219,7 +230,7 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
       if (i + 2*sizeof(char) > imax) goto done;
       b = *i; i++;  /* symbol (byte value) */
       l = *i; i++;  /* bit length of its code */
-      c = i;        /* beginning of bit code */
+      w = i;        /* beginning of bit code */
 
       s->sym_all[b].code_length = l;
       lbytes = l/8 + ((l%8) ? 1 : 0);
@@ -227,15 +238,33 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
       i += lbytes;
 
       p = 0;
-      code = 0;
+      c = 0;
       while(l--) {
-        if (BIT_TEST(c,p)) code |= (1U << l);
+        if (BIT_TEST(w,p)) c |= (1U << l);
         p++;
       }
-      s->sym_all[b].code = code;
+      s->sym_all[b].code = c;
     }
 
-    /* from buffer decode til reach decoded size */
+    /* from header get size of decoded buffer */
+    if (i + sizeof(olen) > imax) goto done;
+    memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
+
+    /* sort the code table short-to-long before decompressing */
+    qsort(s->sym_all, 256, sizeof(*s->sym_all), decoder_sort);
+
+    /* read code bits (msb to lsb) until a code is recognized, write byte */
+    p = 0; /* bit position in encoded data */
+    l = 0; /* length of code word */
+    c = 0; /* code word */
+    while((o - ob) < olen) {
+      if ((i + p/8) >= (ib + ilen)) goto done;
+      l++;
+      c |= BIT_TEST(i,p);
+      if (is_code(c,l,&d,s)) { *o = d; o++; c = 0; l = 0; }
+      else { c = (c << 1U); };
+      p++;
+    }
   }
 
   rc = 0;
