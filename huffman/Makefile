@@ -2,7 +2,8 @@ PROGS = huff
 OBJS=huff.o code.o
 all: $(PROGS)
 
-CFLAGS += -g
+#CFLAGS += -g
+CFLAGS += -O2
 CFLAGS += -Wall 
 
 $(OBJS): %.o: %.c code.h
