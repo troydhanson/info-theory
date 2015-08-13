@@ -92,13 +92,13 @@ static void form_codes(symbol_stats *s) {
 }
 
 static void form_header(symbol_stats *s) {
-  unsigned char l, *c, *nsyms;
-  unsigned long code;
+  unsigned char l, *c, *nsyms_mo;
+  unsigned long code, nsyms=0;
   struct sym *sym;
   size_t i,j,h;
 
   /* number of symbols coming next */
-  nsyms = &s->header[s->header_len++];
+  nsyms_mo = &s->header[s->header_len++];
 
   /* for each symbol with count > 0, sym|l|code */
   for(i=0; i < 256; i++) {
@@ -106,7 +106,7 @@ static void form_header(symbol_stats *s) {
     code = sym->code;
     l = sym->code_length;
     if (l == 0) continue;
-    (*nsyms)++;
+    nsyms++;
 
     h = s->header_len;
     s->header_len += 1 + 1 + l/8 + ((l%8) ? 1 : 0);
@@ -122,6 +122,11 @@ static void form_header(symbol_stats *s) {
       j++;
     }
   }
+  /* we record the number of symbols nsyms as its value minus one,
+   * so that nsyms=256 can still be represented in a byte (as 255).
+   * nsyms=0 is an unsupported edge case implying zero length input */
+  assert(nsyms > 0);
+  *nsyms_mo = nsyms-1;
 }
 
 /* call before encoding or decoding to determine the necessary
@@ -176,14 +181,15 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
 /* given a potential code of "len" bits, check whether it is a 
  * code; if so, store the byte it decodes to in decode and return 1.
  */
-int is_code(unsigned long code, size_t len, unsigned char *decode, symbol_stats *s) {
-  size_t i;
-  for(i=0; i < 256; i++) {
-    if (s->sym_all[i].code_length != len) continue;
-    if (s->sym_all[i].code != code) continue;
-    *decode = s->sym_all[i].leaf_value;
+int is_code(unsigned long code, size_t len, unsigned char *decode, symbol_stats *s, int *i) {
+  for(; *i < 256; (*i)++) {
+    if (s->sym_all[*i].code_length > len) goto done;
+    if (s->sym_all[*i].code_length < len) continue;
+    if (s->sym_all[*i].code != code) continue;
+    *decode = s->sym_all[*i].leaf_value;
     return 1;
   }
+ done:
   return 0;
 }
 
@@ -191,11 +197,11 @@ int is_code(unsigned long code, size_t len, unsigned char *decode, symbol_stats 
  * the core work is done here, either encoding or decoding
  */ 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symbol_stats *s) {
-  unsigned char *o=ob, *i=ib, *eib = ib+ilen, nsyms, b, l, *w, lbytes, d;
+  unsigned char *o=ob, *i=ib, *eib = ib+ilen, nsyms_mo, b, l, *w, lbytes, d;
   size_t j,p,olen;
   unsigned long c;
   struct sym *sym;
-  int rc=-1;
+  int a, rc=-1;
 
   if ((mode & MODE_ENCODE)) {
 
@@ -219,29 +225,28 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
 
   if ((mode & MODE_DECODE)) {
 
-    /* from header get size of decoded buffer */
+    /* initialize the leaf values we sort later below */
+    for(j=0; j < 256; j++) s->sym_all[j].leaf_value = j;
+
+    /* get size of decoded buffer */
     if (i + sizeof(olen) > eib) goto done;
     memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
 
-    /* initialize the leaf nodes we use in decoding */
-    for(j=0; j < 256; j++) s->sym_all[j].leaf_value = j;
-
     /* from header get number of symbol codes */
-    if (i + sizeof(char) > eib) goto done;
-    nsyms = *i; i++;
+    if (i + sizeof(nsyms_mo) > eib) goto done;
+    nsyms_mo = *i; i++;
 
     /* from header get symbol codes */
-    for(j=0; j < nsyms; j++) {
+    for(j=0; j < nsyms_mo+1; j++) {
       if (i + 2*sizeof(char) > eib) goto done;
       b = *i; i++;  /* symbol (byte value) */
       l = *i; i++;  /* bit length of its code */
       w = i;        /* beginning of bit code */
 
+      /* read the bits of the code msb to lsb */
       s->sym_all[b].code_length = l;
       lbytes = l/8 + ((l%8) ? 1 : 0);
       if (i + lbytes > eib) goto done;
-      i += lbytes;
-
       p = 0;
       c = 0;
       while(l--) {
@@ -249,21 +254,24 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
         p++;
       }
       s->sym_all[b].code = c;
+      i += lbytes;
     }
 
-    /* sort the code table short-to-long before decompressing */
+    /* sort the code table short-to-long for faster lookups */
     qsort(s->sym_all, 256, sizeof(*s->sym_all), decoder_sort);
 
     /* read code bits (msb to lsb) until a code is recognized, write byte */
     p = 0; /* bit position in encoded data */
     l = 0; /* length of code word */
     c = 0; /* code word */
+    a = 0; /* code book lookup starts here */
     while((o - ob) < olen) {
       if ((i + p/8) >= eib) goto done;
       l++;
       c |= BIT_TEST(i,p);
-      if (is_code(c,l,&d,s)) { *o = d; o++; c = 0; l = 0; }
-      else { c = (c << 1U); };
+      if (is_code(c,l,&d,s,&a)) { *o = d; o++; c = 0; l = 0; a = 0;} /* got one */
+      else if (a < 256) { c = (c << 1U); } /* add another bit to potential code */
+      else goto done;                      /* invalid code word */
       p++;
     }
   }
