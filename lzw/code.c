@@ -62,6 +62,21 @@ size_t add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   return 0;
 }
 
+int lookup_seq(symbol_stats *s, unsigned char *seq, size_t len, size_t *index) {
+  struct seq *q;
+  int rc = -1;
+
+  HASH_FIND(hh, s->dict, seq, len, q);
+  if (q == NULL) goto done;
+
+  *index = q - s->seq_all;
+  q->hits++;
+  rc = 0;
+
+ done:
+  return rc;
+}
+
 /* 
  * 
  */ 

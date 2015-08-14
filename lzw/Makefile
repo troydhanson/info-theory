@@ -3,7 +3,7 @@ OBJS=lzw.o code.o
 all: $(PROGS)
 
 #CFLAGS += -g
-CFLAGS += -O2
+CFLAGS += -O2 -DNDEBUG
 CFLAGS += -Wall 
 
 $(OBJS): %.o: %.c code.h
