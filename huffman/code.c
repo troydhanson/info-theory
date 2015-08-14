@@ -138,42 +138,52 @@ static void form_header(symbol_stats *s) {
  * once, save it, and then use it permanently for the particular application.
  *****************************************************************************/
 int huf_load_codebook(char *file, symbol_stats *s) {
-  struct sym m;
-  tpl_node *tn=NULL;
-  int rc = -1;
+  int j, fd, rc = -1;
+  unsigned char l;
+  unsigned long c;
 
-  tn = tpl_map("A(ccU)", &m.leaf_value, &m.code_length, &m.code); assert(tn);
-  if (tpl_load(tn, TPL_FILE, file) < 0) goto done;
-  while(tpl_unpack(tn,1) > 0) {
-    s->sym_all[ m.leaf_value ].code_length = m.code_length;
-    s->sym_all[ m.leaf_value ].code = m.code;
+  fd = open(file, O_RDONLY);
+  if (fd == -1) { 
+    fprintf(stderr,"open %s: %s\n", file, strerror(errno)); 
+    goto done;
+  }
+
+  for(j=0; j < 256; j++) {
+    if (read(fd, &l, sizeof(l)) != sizeof(l)) goto done;
+    if (read(fd, &c, sizeof(c)) != sizeof(c)) goto done;
+    s->sym_all[j].code_length = l;
+    s->sym_all[j].code = c;
   }
 
   rc = 0;
 
  done:
-  if (tn) tpl_free(tn);
+  if (fd != -1) close(fd);
   return rc;
 }
-int huf_save_codebook(char *file, symbol_stats *s) {
-  struct sym m;
-  tpl_node *tn=NULL;
-  int j, rc = -1;
 
-  tn = tpl_map("A(ccU)", &m.leaf_value, &m.code_length, &m.code); assert(tn);
-  for(j=0; j < 256; j++) {
-    if (s->sym_all[j].code_length == 0) continue;
-    m.leaf_value = j;
-    m.code_length = s->sym_all[j].code_length;
-    m.code = s->sym_all[j].code;
-    tpl_pack(tn,1);
+int huf_save_codebook(char *file, symbol_stats *s) {
+  int j, fd, rc = -1;
+  unsigned char l;
+  unsigned long c;
+
+  fd = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0664);
+  if (fd == -1) { 
+    fprintf(stderr,"open %s: %s\n", file, strerror(errno)); 
+    goto done;
   }
-  if (tpl_dump(tn, TPL_FILE, file) < 0) goto done;
+
+  for(j=0; j < 256; j++) {
+    l = s->sym_all[j].code_length;
+    c = s->sym_all[j].code;
+    if (write(fd, &l, sizeof(l)) != sizeof(l)) goto done;
+    if (write(fd, &c, sizeof(c)) != sizeof(c)) goto done;
+  }
 
   rc = 0;
 
  done:
-  if (tn) tpl_free(tn);
+  if (fd != -1) close(fd);
   return rc;
 }
 

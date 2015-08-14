@@ -1,5 +1,5 @@
 PROGS = huff
-OBJS=huff.o code.o tpl.o
+OBJS=huff.o code.o
 all: $(PROGS)
 
 #CFLAGS += -g
@@ -15,5 +15,5 @@ huff: $(OBJS)
 .PHONY: clean
 
 clean:
-	rm -f $(OBJS) $(PROGS)
+	rm -f *.o $(PROGS)
 	make -C tests clean

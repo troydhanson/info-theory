@@ -2,8 +2,12 @@
 #ifndef _HCCODE_H_
 #define _HCCODE_H_
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stddef.h>
-#include "tpl.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define adim(x) (sizeof(x)/sizeof(*(x)))
 
