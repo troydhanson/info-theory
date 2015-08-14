@@ -129,6 +129,12 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
+
+  /* require sequence length to be at least digram */
+  if (CF.s.max_seq_length < 2) usage();
+  /* require dictionary to be at least 256 single bytes + "some" sequences */
+  if (CF.s.max_dict_entries < 512) usage();
+
   if (mmap_input() < 0) goto done;
 
   if (CF.mode & MODE_USE_SAVED_CODES) {
