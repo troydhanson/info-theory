@@ -19,8 +19,11 @@ struct seq {
 };
 
 typedef struct {
-  struct seq *seqs_all;
+  struct seq *seq_all;
   struct seq *dict;
+  size_t seq_used;
+  size_t max_seq_length;
+  size_t max_dict_entries;
 } symbol_stats;
 
 /* standard bit vector macros */
@@ -35,8 +38,7 @@ typedef struct {
 #define MODE_DISPLAY_CODES   (1U << 4)
 
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
-               size_t olen, symbol_stats *s, 
-               size_t max_seq_length, size_t max_dict_entries);
+               size_t olen, symbol_stats *s);
 size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, 
                size_t *ibits, size_t *obits, symbol_stats *s);
 int lzw_load_codebook(char *file, symbol_stats *s);

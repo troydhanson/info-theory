@@ -31,12 +31,9 @@ struct {
 
   symbol_stats s;
 
-  size_t max_seq_length;
-  size_t max_dict_entries;
-
 } CF = {
-  .max_seq_length = 24,
-  .max_dict_entries = 1000000,
+  .s.max_seq_length = 24,
+  .s.max_dict_entries = 1000000,
 };
 
 
@@ -123,8 +120,8 @@ int main(int argc, char *argv[]) {
       case 'c': CF.codefile = strdup(optarg); CF.mode |= MODE_USE_SAVED_CODES;  break;
       case 'C': CF.codefile = strdup(optarg); CF.mode |= MODE_SAVE_CODES; break;
       case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
-      case 's': CF.max_seq_length = atoi(optarg); break;
-      case 'D': CF.max_dict_entries = atoi(optarg); break;
+      case 's': CF.s.max_seq_length = atoi(optarg); break;
+      case 'D': CF.s.max_dict_entries = atoi(optarg); break;
       case 'h': default: usage(); break;
     }
   }
@@ -139,7 +136,9 @@ int main(int argc, char *argv[]) {
     if (hc < 0) goto done; 
   }
 
-  CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.ibits, &CF.obits, &CF.s);
+  if (CF.mode & MODE_ENCODE) CF.olen = CF.ilen; // TODO truncate to actual later
+  if (CF.mode & MODE_DECODE) CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen,
+                                                     &CF.ibits, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
 
   if (CF.mode & MODE_SAVE_CODES) {
@@ -147,13 +146,13 @@ int main(int argc, char *argv[]) {
     if (hc < 0) goto done; 
   }
 
-  rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, CF.olen, &CF.s,
-                  CF.max_seq_length, CF.max_dict_entries);
+  rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, CF.olen, &CF.s);
   if (rc) fprintf(stderr,"lzw_recode error\n");
 
  done:
   if (CF.ibuf) munmap(CF.ibuf, CF.ilen);
   if (CF.obuf) munmap(CF.obuf, CF.olen);
+  if (CF.s.seq_all) free(CF.s.seq_all);
   free(CF.ifile);
   free(CF.ofile);
   return rc;
