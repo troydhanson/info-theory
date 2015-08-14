@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
  done:
   if (CF.ibuf) munmap(CF.ibuf, CF.ilen);
   if (CF.obuf) munmap(CF.obuf, CF.olen);
-  if (CF.s.seq_all) free(CF.s.seq_all);
+  lzw_release(&CF.s);
   free(CF.ifile);
   free(CF.ofile);
   return rc;

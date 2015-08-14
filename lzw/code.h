@@ -8,14 +8,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 #include "uthash.h"
 
 #define adim(x) (sizeof(x)/sizeof(*(x)))
 
 struct seq {
+  unsigned hits;
   UT_hash_handle hh;
   int l;    /* sequence length */
-  char b[]; /* sequence bytes */
+  char s[]; /* sequence bytes */
 };
 
 typedef struct {
@@ -43,5 +45,6 @@ size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen,
                size_t *ibits, size_t *obits, symbol_stats *s);
 int lzw_load_codebook(char *file, symbol_stats *s);
 int lzw_save_codebook(char *file, symbol_stats *s);
+void lzw_release(symbol_stats *s);
 
 #endif /* _LZCODE_H_ */

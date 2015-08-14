@@ -6,6 +6,11 @@
 void dump_codes(symbol_stats *s) {
 }
 
+void lzw_release(symbol_stats *s) {
+  HASH_CLEAR(hh, s->dict);
+  if (s->seq_all) free(s->seq_all);
+}
+
 int lzw_load_codebook(char *file, symbol_stats *s) {
   int rc = -1;
   return rc;
@@ -14,6 +19,12 @@ int lzw_load_codebook(char *file, symbol_stats *s) {
 int lzw_save_codebook(char *file, symbol_stats *s) {
   int rc = -1;
   return rc;
+}
+
+int sequence_frequency_sort(struct seq *a, struct seq *b) {
+  if (a->hits < b->hits) return -1;
+  if (a->hits > b->hits) return  1;
+  return 0;
 }
 
 size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
@@ -35,14 +46,19 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
 size_t add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
-  /* grab a free sequence structure or recycle */
+  /* grab a free sequence structure or recycle one */
   if (s->seq_used < s->max_dict_entries) 
     q = &s->seq_all[ s->seq_used++ ];
   else {
-    q = NULL; /* FIXME. the least used one i suppose. */
+    HASH_SORT(s->dict, sequence_frequency_sort);
+    q = s->dict; assert(q);
+    HASH_DEL(s->dict, q);
   }
-  
+
   q->l = len;
+  memcpy(q->s, seq, len);
+
+  HASH_ADD(hh, s->dict, s, len, q);
   return 0;
 }
 
