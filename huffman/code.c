@@ -129,8 +129,6 @@ static void form_header(symbol_stats *s) {
   *nsyms_mo = nsyms-1;
 }
 
-/* call before encoding or decoding to determine the necessary
- * output buffer size to perform the (de-)encoding operation. */
 /******************************************************************************
  * externally saved codebooks can be used when the probabilities of the data
  * remain fixed (e.g. a stable transmitter and receiver system that always 
@@ -187,6 +185,8 @@ int huf_save_codebook(char *file, symbol_stats *s) {
   return rc;
 }
 
+/* given a buffer this computes the output length needed to store
+ * the result of encoding or decoding (specified by the mode). */
 size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *ibits, size_t *obits, symbol_stats *s) {
   struct sym *sym, *tmp;
