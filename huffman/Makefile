@@ -1,5 +1,5 @@
 PROGS = huff
-OBJS=huff.o code.o
+OBJS=huff.o code.o tpl.o
 all: $(PROGS)
 
 #CFLAGS += -g
@@ -16,4 +16,4 @@ huff: $(OBJS)
 
 clean:
 	rm -f $(OBJS) $(PROGS)
-
+	make -C tests clean

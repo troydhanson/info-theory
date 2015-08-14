@@ -18,6 +18,7 @@ struct {
   char *prog;
   int verbose;
   int mode;
+  char *codefile;
 
   char *ifile;
   unsigned char *ibuf;
@@ -29,15 +30,19 @@ struct {
 
   symbol_stats s;
 
-} CF = {
-  .mode = MODE_ENCODE,
-};
+} CF;
 
 
 void usage() {
-  fprintf(stderr,"usage: %s [-v] -e|d -i <file> -o <file>\n", CF.prog);
-  fprintf(stderr,"          -e (encode) [default]\n");
+  fprintf(stderr,"usage: %s [-vlcC] -e|d -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"          -e (encode)\n");
   fprintf(stderr,"          -d (decode)\n");
+  fprintf(stderr,"          -i (input file)\n");
+  fprintf(stderr,"          -o (output file)\n");
+  fprintf(stderr,"          -v (verbose)\n");
+  fprintf(stderr,"          -l (display codes) [encode mode]\n");
+  fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
+  fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
   exit(-1);
 }
 
@@ -96,26 +101,40 @@ int mmap_output(void) {
 }
 
 int main(int argc, char *argv[]) {
-  int opt, rc=-1;
+  int opt, rc=-1, hc;
   CF.prog = argv[0];
 
-  while ( (opt = getopt(argc,argv,"vedi:o:h")) > 0) {
+  while ( (opt = getopt(argc,argv,"vedi:o:c:C:lh")) > 0) {
     switch(opt) {
       case 'v': CF.verbose++; break;
-      case 'e': CF.mode = MODE_ENCODE; break;
-      case 'd': CF.mode = MODE_DECODE; break;
+      case 'e': CF.mode |= MODE_ENCODE; break;
+      case 'd': CF.mode |= MODE_DECODE; break;
       case 'i': CF.ifile = strdup(optarg); break;
       case 'o': CF.ofile = strdup(optarg); break;
+      case 'c': CF.codefile = strdup(optarg); CF.mode |= MODE_USE_SAVED_CODES;  break;
+      case 'C': CF.codefile = strdup(optarg); CF.mode |= MODE_SAVE_CODES; break;
+      case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
       case 'h': default: usage(); break;
     }
   }
 
   if ((!CF.ifile) || (!CF.ofile)) usage();
+  if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
+  if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
   if (mmap_input() < 0) goto done;
 
-  CF.olen = huf_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.ibits, &CF.obits,
-                             &CF.s, CF.verbose);
+  if (CF.mode & MODE_USE_SAVED_CODES) {
+    hc = huf_load_codebook(CF.codefile, &CF.s);
+    if (hc < 0) goto done; 
+  }
+
+  CF.olen = huf_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.ibits, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
+
+  if (CF.mode & MODE_SAVE_CODES) {
+    hc = huf_save_codebook(CF.codefile, &CF.s);
+    if (hc < 0) goto done; 
+  }
 
   rc = huf_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.s);
   if (rc) fprintf(stderr,"huf_recode error\n");

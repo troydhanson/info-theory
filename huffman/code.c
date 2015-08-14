@@ -4,7 +4,7 @@
 #include "utlist.h"
 #include "code.h"
 
-static void dump_codes(symbol_stats *s) {
+void dump_codes(symbol_stats *s) {
   unsigned char l;
   unsigned long code;
   struct sym *sym;
@@ -131,12 +131,58 @@ static void form_header(symbol_stats *s) {
 
 /* call before encoding or decoding to determine the necessary
  * output buffer size to perform the (de-)encoding operation. */
+/******************************************************************************
+ * externally saved codebooks can be used when the probabilities of the data
+ * remain fixed (e.g. a stable transmitter and receiver system that always 
+ * deal in the same kind of data). In this case we can compute the codebook
+ * once, save it, and then use it permanently for the particular application.
+ *****************************************************************************/
+int huf_load_codebook(char *file, symbol_stats *s) {
+  struct sym m;
+  tpl_node *tn=NULL;
+  int rc = -1;
+
+  tn = tpl_map("A(ccU)", &m.leaf_value, &m.code_length, &m.code); assert(tn);
+  if (tpl_load(tn, TPL_FILE, file) < 0) goto done;
+  while(tpl_unpack(tn,1) > 0) {
+    s->sym_all[ m.leaf_value ].code_length = m.code_length;
+    s->sym_all[ m.leaf_value ].code = m.code;
+  }
+
+  rc = 0;
+
+ done:
+  if (tn) tpl_free(tn);
+  return rc;
+}
+int huf_save_codebook(char *file, symbol_stats *s) {
+  struct sym m;
+  tpl_node *tn=NULL;
+  int j, rc = -1;
+
+  tn = tpl_map("A(ccU)", &m.leaf_value, &m.code_length, &m.code); assert(tn);
+  for(j=0; j < 256; j++) {
+    if (s->sym_all[j].code_length == 0) continue;
+    m.leaf_value = j;
+    m.code_length = s->sym_all[j].code_length;
+    m.code = s->sym_all[j].code;
+    tpl_pack(tn,1);
+  }
+  if (tpl_dump(tn, TPL_FILE, file) < 0) goto done;
+
+  rc = 0;
+
+ done:
+  if (tn) tpl_free(tn);
+  return rc;
+}
+
 size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen, 
-     size_t *ibits, size_t *obits, symbol_stats *s, int verbose) {
+     size_t *ibits, size_t *obits, symbol_stats *s) {
   struct sym *sym, *tmp;
   size_t j, olen = 0;
 
-  if ((mode & MODE_ENCODE)) {
+  if ((mode & MODE_ENCODE) && !(mode & MODE_USE_SAVED_CODES)) {
     memset(s, 0, sizeof(*s));
     *ibits = ilen * 8;
     *obits = 0;
@@ -160,10 +206,17 @@ size_t huf_compute_olen( int mode, unsigned char *ib, size_t ilen,
 
     form_codes(s);
     form_header(s);
-    if (verbose) dump_codes(s); 
+    if (mode & MODE_DISPLAY_CODES) dump_codes(s);
+
     for(j=0; j < ilen; j++) *obits += s->sym_all[ ib[j] ].code_length;
     *obits += sizeof(olen)*8;
-    *obits += s->header_len*8;
+    if (!(mode & MODE_SAVE_CODES)) *obits += s->header_len*8;
+  }
+
+  /* in this mode sym_all[] has been pre-populated */
+  if ((mode & MODE_ENCODE) && (mode & MODE_USE_SAVED_CODES)) {
+    for(j=0; j < ilen; j++) *obits += s->sym_all[ ib[j] ].code_length;
+    *obits += sizeof(olen)*8;
   }
 
   if ((mode & MODE_DECODE)) {
@@ -208,8 +261,10 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
     memcpy(o, &ilen, sizeof(ilen));
     o += sizeof(ilen);
 
-    memcpy(o, s->header, s->header_len);
-    o += s->header_len;
+    if (!(mode & (MODE_USE_SAVED_CODES | MODE_SAVE_CODES))) {
+      memcpy(o, s->header, s->header_len);
+      o += s->header_len;
+    }
 
     p = 0;
     for(j=0; j < ilen; j++) {
@@ -232,29 +287,31 @@ int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, symb
     if (i + sizeof(olen) > eib) goto done;
     memcpy(&olen, i, sizeof(olen)); i += sizeof(olen);
 
-    /* from header get number of symbol codes */
-    if (i + sizeof(nsyms_mo) > eib) goto done;
-    nsyms_mo = *i; i++;
+    if (!(mode & MODE_USE_SAVED_CODES)) {
+      /* from header get number of symbol codes */
+      if (i + sizeof(nsyms_mo) > eib) goto done;
+      nsyms_mo = *i; i++;
 
-    /* from header get symbol codes */
-    for(j=0; j < nsyms_mo+1; j++) {
-      if (i + 2*sizeof(char) > eib) goto done;
-      b = *i; i++;  /* symbol (byte value) */
-      l = *i; i++;  /* bit length of its code */
-      w = i;        /* beginning of bit code */
+      /* from header get symbol codes */
+      for(j=0; j < nsyms_mo+1; j++) {
+        if (i + 2*sizeof(char) > eib) goto done;
+        b = *i; i++;  /* symbol (byte value) */
+        l = *i; i++;  /* bit length of its code */
+        w = i;        /* beginning of bit code */
 
-      /* read the bits of the code msb to lsb */
-      s->sym_all[b].code_length = l;
-      lbytes = l/8 + ((l%8) ? 1 : 0);
-      if (i + lbytes > eib) goto done;
-      p = 0;
-      c = 0;
-      while(l--) {
-        if (BIT_TEST(w,p)) c |= (1U << l);
-        p++;
+        /* read the bits of the code msb to lsb */
+        s->sym_all[b].code_length = l;
+        lbytes = l/8 + ((l%8) ? 1 : 0);
+        if (i + lbytes > eib) goto done;
+        p = 0;
+        c = 0;
+        while(l--) {
+          if (BIT_TEST(w,p)) c |= (1U << l);
+          p++;
+        }
+        s->sym_all[b].code = c;
+        i += lbytes;
       }
-      s->sym_all[b].code = c;
-      i += lbytes;
     }
 
     /* sort the code table short-to-long for faster lookups */

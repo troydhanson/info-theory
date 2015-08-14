@@ -3,6 +3,7 @@
 #define _HCCODE_H_
 
 #include <stddef.h>
+#include "tpl.h"
 
 #define adim(x) (sizeof(x)/sizeof(*(x)))
 
@@ -34,14 +35,17 @@ typedef struct {
 #define BIT_SET(c,i)   (c[(i)/8] |=  (1 << ((i) % 8)))
 #define BIT_CLEAR(c,i) (c[(i)/8] &= ~(1 << ((i) % 8)))
 
-/* while the first four are mutually exclusive we use
- * bit flags to support OR'ing additional options */
-#define MODE_ENCODE     (1U << 0)
-#define MODE_DECODE     (1U << 1)
+#define MODE_ENCODE          (1U << 0)
+#define MODE_DECODE          (1U << 1)
+#define MODE_SAVE_CODES      (1U << 2)
+#define MODE_USE_SAVED_CODES (1U << 3)
+#define MODE_DISPLAY_CODES   (1U << 4)
 
 int huf_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
                symbol_stats *s);
 size_t huf_compute_olen(int mode, unsigned char *ib, size_t ilen, 
-               size_t *ibits, size_t *obits, symbol_stats *s, int verbose);
+               size_t *ibits, size_t *obits, symbol_stats *s);
+int huf_load_codebook(char *file, symbol_stats *s);
+int huf_save_codebook(char *file, symbol_stats *s);
 
 #endif /* _HCCODE_H_ */
