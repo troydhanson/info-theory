@@ -3,7 +3,7 @@ Huffman encoding
 
 Back up [parent page](https://github.com/troydhanson/info-theory).
 
-This compression method originated around 1960. It uses the
+This compression method originated around 1952. It uses the
 symbol probabilities to assign longer codes to rare symbols.
 See "Coding and Information Theory", by Richard W. Hamming, 
 or Robert W. Lucky, "Silicon Dreams" for good explanations.
