@@ -32,19 +32,17 @@ struct {
   symbol_stats s;
 
 } CF = {
-  .s.max_seq_length = 8,
   .s.max_dict_entries = 4096,
 };
 
 
 void usage() {
-  fprintf(stderr,"usage: %s [-vlcCsD] -e|d -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"usage: %s [-vlcCD] -e|d -i <file> -o <file>\n", CF.prog);
   fprintf(stderr,"          -e (encode)\n");
   fprintf(stderr,"          -d (decode)\n");
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
   fprintf(stderr,"          -v (verbose)\n");
-  fprintf(stderr,"          -s [number] (max sequence length) [default:8]\n");
   fprintf(stderr,"          -D [number] (max dictionary entries) [default:4096]\n");
   fprintf(stderr,"          -l (display codes) [encode mode]\n");
   fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
@@ -110,7 +108,7 @@ int main(int argc, char *argv[]) {
   int opt, rc=-1, hc;
   CF.prog = argv[0];
 
-  while ( (opt = getopt(argc,argv,"vedi:o:c:C:ls:D:h")) > 0) {
+  while ( (opt = getopt(argc,argv,"vedi:o:c:C:lD:h")) > 0) {
     switch(opt) {
       case 'v': CF.verbose++; break;
       case 'e': CF.mode |= MODE_ENCODE; break;
@@ -120,7 +118,6 @@ int main(int argc, char *argv[]) {
       case 'c': CF.codefile = strdup(optarg); CF.mode |= MODE_USE_SAVED_CODES;  break;
       case 'C': CF.codefile = strdup(optarg); CF.mode |= MODE_SAVE_CODES; break;
       case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
-      case 's': CF.s.max_seq_length = atoi(optarg); break;
       case 'D': CF.s.max_dict_entries = atoi(optarg); break;
       case 'h': default: usage(); break;
     }
@@ -130,8 +127,6 @@ int main(int argc, char *argv[]) {
   if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
 
-  /* require sequence length to be at least digram */
-  if (CF.s.max_seq_length < 2) usage();
   /* require dictionary to be at least 256 single bytes + "some" sequences */
   if (CF.s.max_dict_entries < 512) usage();
 

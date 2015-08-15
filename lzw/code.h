@@ -14,17 +14,16 @@
 #define adim(x) (sizeof(x)/sizeof(*(x)))
 
 struct seq {
+  unsigned char *s;  /* sequence bytes */
+  size_t l;          /* sequence length */
   unsigned hits;
   UT_hash_handle hh;
-  int l;    /* sequence length */
-  char s[]; /* sequence bytes */
 };
 
 typedef struct {
   struct seq *seq_all;
   struct seq *dict;
   size_t seq_used;
-  size_t max_seq_length;
   size_t max_dict_entries;
 } symbol_stats;
 

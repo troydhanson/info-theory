@@ -3,9 +3,6 @@
 #include <stdio.h>
 #include "code.h"
 
-void dump_codes(symbol_stats *s) {
-}
-
 void lzw_release(symbol_stats *s) {
   HASH_CLEAR(hh, s->dict);
   if (s->seq_all) free(s->seq_all);
@@ -47,6 +44,8 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
   return olen;
 }
 
+/* the memory pointed to by seq must be static through the 
+ * lifetime of encoding or decoding the buffer */
 void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
@@ -63,11 +62,11 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   }
 
   /* reset the structure */
-  memset(q,0,sizeof(*q) + s->max_seq_length);
+  q->hits = 0;
   q->l = len;
-  memcpy(q->s, seq, len);
+  q->s = seq;
 
-  HASH_ADD(hh, s->dict, s, len, q);
+  HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
   fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q - s->seq_all);
 }
 
@@ -82,14 +81,13 @@ int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *ind
   return 1;
 }
 
+static unsigned char bytes_all[256];
 int init_dict(symbol_stats *s) {
-  unsigned char a;
   int rc = -1;
   size_t j;
 
   /* allocate all the sequence entries as one contiguous buffer */
-  s->seq_all = calloc(s->max_dict_entries, 
-                       sizeof(struct seq) + s->max_seq_length);
+  s->seq_all = calloc(s->max_dict_entries, sizeof(struct seq));
   if (s->seq_all == NULL) {
     fprintf(stderr,"out of memory\n");
     goto done;
@@ -97,8 +95,8 @@ int init_dict(symbol_stats *s) {
 
   /* seed the single-byte sequences */
   for(j=0; j < 256; j++) {
-    a = j;
-    add_seq(s, &a, 1);
+    bytes_all[j] = j;
+    add_seq(s, &bytes_all[j], 1);
   }
 
   rc = 0;
@@ -167,12 +165,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
 
       /* is this sequence in the dictionary? */
       if (have_seq(s, i, l, &x)) {
-        /* is it already the max seq length? */
-        if (l == s->max_seq_length) {
-          emit();
-          i += l;
-          l = 1;
-        } else l++;
+        l++;
         continue;
       }
 
@@ -190,7 +183,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
     /* skip length */
     i += sizeof(olen);
 
-    unsigned char q[s->max_seq_length], *qs;
+    unsigned char *qs;
     unsigned long _x;
     int first_time=1;
 
@@ -212,12 +205,8 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
 
       /* add concatenated previous seq + extension */
       if (first_time) first_time=0;
-      else if (s->seq_all[_x].l + s->seq_all[x].l <= s->max_seq_length) {
-        qs = q;
-        memcpy(qs, s->seq_all[_x].s, s->seq_all[_x].l);
-        qs += s->seq_all[_x].l;
-        memcpy(qs, s->seq_all[ x].s, s->seq_all[ x].l);
-        add_seq(s,q,s->seq_all[_x].l+ s->seq_all[x].l);
+      else {
+        //add_seq(s,qs,s->seq_all[_x].l+ s->seq_all[x].l);
       }
       _x = x;
     }
