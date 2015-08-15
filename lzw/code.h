@@ -39,9 +39,9 @@ typedef struct {
 #define MODE_DISPLAY_CODES   (1U << 4)
 
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
-               size_t olen, symbol_stats *s);
+               size_t *olen, symbol_stats *s);
 size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, 
-               size_t *ibits, size_t *obits, symbol_stats *s);
+               size_t *obits, symbol_stats *s);
 int lzw_load_codebook(char *file, symbol_stats *s);
 int lzw_save_codebook(char *file, symbol_stats *s);
 void lzw_release(symbol_stats *s);

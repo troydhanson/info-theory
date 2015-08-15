@@ -25,7 +25,7 @@ int sequence_frequency_sort(struct seq *a, struct seq *b) {
 }
 
 size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
-     size_t *ibits, size_t *obits, symbol_stats *s)
+     size_t *obits, symbol_stats *s)
 {
   size_t olen = 0;
 
@@ -135,13 +135,13 @@ unsigned char get_num_bits(symbol_stats *s, int post) {
  } while(0)
 
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
-     size_t olen, symbol_stats *s) {
+     size_t *olen, symbol_stats *s) {
   unsigned char b, *i=ib, *o=ob;
   unsigned long x;
   int rc = -1;
   size_t l;
   size_t p=0; 
-  size_t eop = olen*8;
+  size_t eop = (*olen)*8;
 
   if ((mode & MODE_ENCODE)) {
     if (init_dict(s) < 0) goto done;
@@ -175,18 +175,21 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
       i += l-1;          /* start new seq */
       l = 1;
     }
+
+    /* indicate final compresed length */
+    *olen = (o + p/8 + ((p%8) ? 1 : 0)) - ob;
   }
 
   if ((mode & MODE_DECODE)) {
     if (init_dict(s) < 0) goto done;
 
     /* skip length */
-    i += sizeof(olen);
+    i += sizeof(*olen);
 
     unsigned long _x; /* the s->seq_all[] index (x) of the previous iteration */
     int first_time=1;
 
-    while (o - ob < olen) {
+    while (o - ob < *olen) {
       x = 0;
       b = get_num_bits(s,!first_time);
       if ((i + b/8 + ((b%8) ? 1 : 0)) > ib + ilen) goto done;
@@ -202,7 +205,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
       *  it's not in our dictionary yet, but we know what it must be.
        * re-emit previous code suffixed with its first character. */
       if ((x == HASH_COUNT(s->dict)) && !first_time) { 
-        if (o + s->seq_all[_x].l + 1 > ob + olen) goto done;
+        if (o + s->seq_all[_x].l + 1 > ob + *olen) goto done;
         memcpy(o, s->seq_all[_x].s, s->seq_all[_x].l);
         o[s->seq_all[_x].l] = s->seq_all[_x].s[0];
         add_seq(s, o, s->seq_all[_x].l + 1);
@@ -211,7 +214,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
         continue;
       }
 
-      if (o + s->seq_all[x].l > ob + olen) goto done;
+      if (o + s->seq_all[x].l > ob + *olen) goto done;
       if (s->seq_all[x].l == 0) goto done;
       memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
       o += s->seq_all[x].l;

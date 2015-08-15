@@ -137,9 +137,16 @@ int main(int argc, char *argv[]) {
     if (hc < 0) goto done; 
   }
 
-  if (CF.mode & MODE_ENCODE) CF.olen = CF.ilen; // TODO truncate to actual later
-  if (CF.mode & MODE_DECODE) CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen,
-                                                     &CF.ibits, &CF.obits, &CF.s);
+  /* LZW encoding only knows the output buffer size afterward. 
+   * for practical purposes we "guess" that LZW is going to shrink it,
+   * so the input buffer size is an upper bound on the output buffer size. */
+  if (CF.mode & MODE_ENCODE) {
+    CF.olen = CF.ilen; 
+  }
+  if (CF.mode & MODE_DECODE) {
+    CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
+  }
+
   if (mmap_output() < 0) goto done;
 
   if (CF.mode & MODE_SAVE_CODES) {
@@ -147,8 +154,17 @@ int main(int argc, char *argv[]) {
     if (hc < 0) goto done; 
   }
 
-  rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, CF.olen, &CF.s);
-  if (rc) fprintf(stderr,"lzw_recode error\n");
+  rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.olen, &CF.s);
+  if (rc) { 
+    fprintf(stderr,"lzw_recode error\n"); 
+    goto done; 
+  }
+
+  if (truncate(CF.ofile, CF.olen) < 0) {
+    fprintf(stderr,"truncate: %s\n", strerror(errno));
+    goto done;
+  }
+
 
  done:
   if (CF.ibuf) munmap(CF.ibuf, CF.ilen);
