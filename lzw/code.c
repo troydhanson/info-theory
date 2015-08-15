@@ -111,7 +111,7 @@ int init_dict(symbol_stats *s) {
  */
 unsigned char get_num_bits(symbol_stats *s, int post) {
   unsigned long d = HASH_COUNT(s->dict) + post;
-  assert(d >= 256); /* the single-bytes seqs are always in the dict */
+  assert(d >= 256); /* one-bytes seqs always in the dict */
 
   /* let b = log2(d) rounded up to a whole integer. this is
    * the number of bits needed to distinguish d items. */
@@ -159,7 +159,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
 
       /* does sequence extend over buffer end? */
       if (i+l > ib+ilen) {
-        if (l > 1) emit();
+        if (l > 1) emit(); /* emit previous */
         break;
       }
 
@@ -170,9 +170,9 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
       }
 
       /* the sequence is not in the dictionary */
-      emit();
+      emit();            /* emit previous */
       add_seq(s, i, l);
-      i += l;
+      i += l-1;          /* start new seq */
       l = 1;
     }
   }
@@ -183,8 +183,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
     /* skip length */
     i += sizeof(olen);
 
-    unsigned char *qs;
-    unsigned long _x;
+    unsigned long _x; /* the s->seq_all[] index (x) of the previous iteration */
     int first_time=1;
 
     while (o - ob < olen) {
@@ -206,7 +205,8 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
       /* add concatenated previous seq + extension */
       if (first_time) first_time=0;
       else {
-        //add_seq(s,qs,s->seq_all[_x].l+ s->seq_all[x].l);
+        l = s->seq_all[_x].l + s->seq_all[x].l;
+        add_seq(s, o - l, l);
       }
       _x = x;
     }
