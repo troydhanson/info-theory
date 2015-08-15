@@ -67,7 +67,7 @@ size_t add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   return 0;
 }
 
-int have_seq(symbol_stats *s, unsigned char *seq, size_t len, size_t *index) {
+int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
   struct seq *q;
 
   HASH_FIND(hh, s->dict, seq, len, q);
@@ -75,18 +75,45 @@ int have_seq(symbol_stats *s, unsigned char *seq, size_t len, size_t *index) {
 
   assert(q >= s->seq_all);
   *index = q - s->seq_all;
-  q->hits++;
   return 1;
 }
 
-/* 
- * 
- */ 
+/* while x is an index into s->seq_all, we cheat and encode it
+ * as fewer bits. x really only indexes into s->seq_all up to
+ * the current item count (d) of the dictionary hash table. 
+ */
+unsigned char get_num_bits(symbol_stats *s, unsigned long x) {
+  unsigned long d = HASH_COUNT(s->dict);
+  assert(d >= 256); /* the single-bytes seqs are always in the dict */
+  assert(x < d);
+
+  /* let b = log2(d) rounded up to a whole integer. this is
+   * the number of bits needed to distinguish d items. */
+  unsigned char b=0;
+  while (((d-1) >> b) != 0) b++;
+
+  return b;
+}
+
+/* this macro emits the index x encoded as b bits in e */
+#define emit()                                          \
+ do {                                                   \
+   b = get_num_bits(s,x);                               \
+   if (p + b > eop) goto done;                          \
+   while (b--) {                                        \
+     if ((x >> b) & 1) BIT_SET(o,p);                    \
+     p++;                                               \
+   }                                                    \
+   s->seq_all[x].hits++;                                \
+ } while(0)
+
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
      size_t olen, symbol_stats *s) {
-  unsigned char a, *i=ib, *o=ob;
+  unsigned char a, b, *i=ib, *o=ob;
+  unsigned long x;
   int j, rc = -1;
-  size_t l,x;
+  size_t l;
+  size_t p=0, eop = olen*8; /* bit position in obuf; eop is first bit beyond */
 
   if ((mode & MODE_ENCODE)) {
     /* allocate all the sequence entries as one contiguous buffer */
@@ -107,39 +134,33 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
      * LZW encode input buffer 
      */
 
-    l = 1; /* length of sequence in bytes */
+    l = 1;
 
     while(1) {
 
-      while ((i + l <= ib + ilen)    && 
-             have_seq(s, i, l, &x)   && 
-             (l <= s->max_seq_length)) {
-        l++;
+      /* sequence starts at i for length l */
+
+      /* does sequence extend over buffer end? */
+      if (i+l > ib+ilen) {
+        if (l > 1) emit();
+        break;
       }
 
-      /* at this point, either: 
-       *  (a) length exceed input buffer, or
-       *  (b) sequence is novel, or
-       *  (c) sequence exceeds max length.
-       * 
-       * In all cases the sequence of length l-1
-       * (if l-1 is positive) can be emitted.
-       *
-       * If length l-1 is zero then end-of-buffer
-       * is encountered (because single-bytes
-       * are always in the dictionary and less
-       * than the max sequence length).
-       */
-      if (--l == 0) break;
+      /* is this sequence in the dictionary? */
+      if (have_seq(s, i, l, &x)) {
+        /* is it already the max seq length? */
+        if (l == s->max_seq_length) {
+          emit();
+          i += l;
+          l = 1;
+        } else l++;
+        continue;
+      }
 
-      /* emit */
-      size_t el = 1; /* FIXME emission length */
-      if (o + el > ob+olen) goto done;
-      //emit();
-      o += el;
-
-      /* reset */
-      i += l-1;
+      /* the sequence is not in the dictionary */
+      emit();
+      add_seq(s, i, l);
+      i += l;
       l = 1;
     }
   }
