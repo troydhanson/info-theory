@@ -47,7 +47,7 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
   return olen;
 }
 
-size_t add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
+void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
   /* get a free sequence structure or recycle */
@@ -68,7 +68,7 @@ size_t add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   memcpy(q->s, seq, len);
 
   HASH_ADD(hh, s->dict, s, len, q);
-  return 0;
+  fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q - s->seq_all);
 }
 
 int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
@@ -111,8 +111,8 @@ int init_dict(symbol_stats *s) {
  * as fewer bits. x really only indexes into s->seq_all up to
  * the current item count (d) of the dictionary hash table. 
  */
-unsigned char get_num_bits(symbol_stats *s) {
-  unsigned long d = HASH_COUNT(s->dict);
+unsigned char get_num_bits(symbol_stats *s, int post) {
+  unsigned long d = HASH_COUNT(s->dict) + post;
   assert(d >= 256); /* the single-bytes seqs are always in the dict */
 
   /* let b = log2(d) rounded up to a whole integer. this is
@@ -126,7 +126,7 @@ unsigned char get_num_bits(symbol_stats *s) {
 /* this macro emits the index x encoded as b bits in e */
 #define emit()                                          \
  do {                                                   \
-   b = get_num_bits(s);                                 \
+   b = get_num_bits(s,0);                               \
    fprintf(stderr,"emit index %lu (in %u bits)\n",x,b); \
    if (p + b > eop) goto done;                          \
    while (b--) {                                        \
@@ -196,18 +196,19 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
 
     while (o - ob < olen) {
       x = 0;
-      b = get_num_bits(s);
+      b = get_num_bits(s,!first_time);
       if ((i + b/8 + ((b%8) ? 1 : 0)) > ib + ilen) goto done;
       while(b--) {
         if (BIT_TEST(i,p)) x |= (1U << b);
         p++;
       }
-      fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s));
+      fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s,!first_time));
       if (x >= HASH_COUNT(s->dict)) goto done;
       if (o + s->seq_all[x].l > ob + olen) goto done;
       if (s->seq_all[x].l == 0) goto done;
       memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
       o += s->seq_all[x].l;
+      s->seq_all[x].hits++;
 
       /* add concatenated previous seq + extension */
       if (first_time) first_time=0;
