@@ -32,8 +32,8 @@ struct {
   symbol_stats s;
 
 } CF = {
-  .s.max_seq_length = 24,
-  .s.max_dict_entries = 1000000,
+  .s.max_seq_length = 8,
+  .s.max_dict_entries = 4096,
 };
 
 
@@ -44,8 +44,8 @@ void usage() {
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
   fprintf(stderr,"          -v (verbose)\n");
-  fprintf(stderr,"          -s [number] (max sequence length) [default:24]\n");
-  fprintf(stderr,"          -D [number] (max dictionary entries) [default:1M] 0=unlimited\n");
+  fprintf(stderr,"          -s [number] (max sequence length) [default:8]\n");
+  fprintf(stderr,"          -D [number] (max dictionary entries) [default:4096]\n");
   fprintf(stderr,"          -l (display codes) [encode mode]\n");
   fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
   fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
