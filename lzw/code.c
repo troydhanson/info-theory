@@ -18,20 +18,20 @@ int lzw_save_codebook(char *file, symbol_stats *s) {
   return rc;
 }
 
-int sequence_frequency_sort(struct seq *a, struct seq *b) {
-  if (a->hits < b->hits) return -1;
-  if (a->hits > b->hits) return  1;
-  return 0;
-}
-
 size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *obits, symbol_stats *s)
 {
   size_t olen = 0;
 
+  /* LZW in _encoding_ only knows the output buffer size afterward. 
+   * We "guess" that LZW is going to shrink it, although for truly 
+   * random, uncompressable data it may even grow it somewhat. 
+   * So we use a large size and after encoding truncate to actual. */
   if (mode & MODE_ENCODE) {
+    olen = ilen * 2;
   }
 
+  /* in _decoding_ we know the output size because we stored it. */
   if (mode & MODE_DECODE) {
     if (ib + sizeof(olen) > ib + ilen) goto done;
     memcpy(&olen, ib, sizeof(olen));
@@ -76,7 +76,7 @@ int init_dict(symbol_stats *s) {
   int rc = -1;
   size_t j;
 
-  /* allocate all the sequence entries as one contiguous buffer */
+  /* allocate the dictionary as one contiguous buffer */
   s->seq_all = calloc(s->max_dict_entries, sizeof(struct seq));
   if (s->seq_all == NULL) {
     fprintf(stderr,"out of memory\n");
@@ -98,10 +98,12 @@ int init_dict(symbol_stats *s) {
 /* while x is an index into s->seq_all, we cheat and encode it
  * as fewer bits. x really only indexes into s->seq_all up to
  * the current item count (d) of the dictionary hash table. 
+ * in doing so this implementation uses variable-width indexes
+ * into the dictionary. the encoder and decoder sync permits it.
  */
 unsigned char get_num_bits(symbol_stats *s, int post) {
   unsigned long d = HASH_COUNT(s->dict) + post;
-  assert(d >= 256); /* one-bytes seqs always in the dict */
+  assert(d >= 256); /* one-byte seqs always in the dict */
 
   /* let b = log2(d) rounded up to a whole integer. this is
    * the number of bits needed to distinguish d items. */

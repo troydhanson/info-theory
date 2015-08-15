@@ -137,16 +137,7 @@ int main(int argc, char *argv[]) {
     if (hc < 0) goto done; 
   }
 
-  /* LZW encoding only knows the output buffer size afterward. 
-   * for practical purposes we "guess" that LZW is going to shrink it,
-   * although for truly random data it may even grow it somewhat.*/
-  if (CF.mode & MODE_ENCODE) {
-    CF.olen = CF.ilen * 2;
-  }
-  if (CF.mode & MODE_DECODE) {
-    CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
-  }
-
+  CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
 
   if (CF.mode & MODE_SAVE_CODES) {
