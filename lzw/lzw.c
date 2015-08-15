@@ -32,7 +32,7 @@ struct {
   symbol_stats s;
 
 } CF = {
-  .s.max_dict_entries = 4096,
+  .s.max_dict_entries = 1000000,
 };
 
 
@@ -43,7 +43,7 @@ void usage() {
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
   fprintf(stderr,"          -v (verbose)\n");
-  fprintf(stderr,"          -D [number] (max dictionary entries) [default:4096]\n");
+  fprintf(stderr,"          -D [number] (max dictionary entries) [default:1M]\n");
   fprintf(stderr,"          -l (display codes) [encode mode]\n");
   fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
   fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
@@ -139,9 +139,9 @@ int main(int argc, char *argv[]) {
 
   /* LZW encoding only knows the output buffer size afterward. 
    * for practical purposes we "guess" that LZW is going to shrink it,
-   * so the input buffer size is an upper bound on the output buffer size. */
+   * although for truly random data it may even grow it somewhat.*/
   if (CF.mode & MODE_ENCODE) {
-    CF.olen = CF.ilen; 
+    CF.olen = CF.ilen * 2;
   }
   if (CF.mode & MODE_DECODE) {
     CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);

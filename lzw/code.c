@@ -67,7 +67,7 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   q->s = seq;
 
   HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
-  fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q - s->seq_all);
+  //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 }
 
 int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
@@ -122,16 +122,16 @@ unsigned char get_num_bits(symbol_stats *s, int post) {
 }
 
 /* this macro emits the index x encoded as b bits in e */
-#define emit()                                          \
- do {                                                   \
-   b = get_num_bits(s,0);                               \
-   fprintf(stderr,"emit index %lu (in %u bits)\n",x,b); \
-   if (p + b > eop) goto done;                          \
-   while (b--) {                                        \
-     if ((x >> b) & 1) BIT_SET(o,p);                    \
-     p++;                                               \
-   }                                                    \
-   s->seq_all[x].hits++;                                \
+#define emit()                                                \
+ do {                                                         \
+   b = get_num_bits(s,0);                                     \
+   if(0) fprintf(stderr,"emit index %lu (in %u bits)\n",x,b); \
+   if (p + b > eop) goto done;                                \
+   while (b--) {                                              \
+     if ((x >> b) & 1) BIT_SET(o,p);                          \
+     p++;                                                     \
+   }                                                          \
+   s->seq_all[x].hits++;                                      \
  } while(0)
 
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
@@ -186,7 +186,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
     /* skip length */
     i += sizeof(*olen);
 
-    unsigned long _x; /* the s->seq_all[] index (x) of the previous iteration */
+    unsigned long _x=0; /* index (x) of the previous iteration */
     int first_time=1;
 
     while (o - ob < *olen) {
@@ -197,7 +197,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
         if (BIT_TEST(i,p)) x |= (1U << b);
         p++;
       }
-      fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s,!first_time));
+      //fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s,!first_time));
       if (x > HASH_COUNT(s->dict)) goto done;
 
       /* special case KwKwK (see LZW article); code refers to just-
