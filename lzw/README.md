@@ -3,16 +3,22 @@ LZW encoding
 
 Back up [parent page](https://github.com/troydhanson/info-theory).
 
-LZ has innate ability to encode frequent sequences efficiently. This
-is one of their advantages over Huffman codes that operate on bytes.
+Lempel-Ziv's LZ77/LZ78 compression methods are the basis of LZW (1984).
+Terry Welch described LZW in an article IEEE Computer magazine [pdf]
+(welch_1984_lzw.pdf).
 
-Lempel-Ziv's LZ77/LZ78 compression methods was adapted into LZW (1984).
-LZ78 uses a dictionary of already-seen sequences that is updated
-during encoding so that longer novel sequences continue to be added.
-In this way the encoding can encode the longest already-seen sequence
-as an index entry to the dictionary. The decoder is running the same
-dictionary-update algorithm so it can interpret the index numbers.
-LZW seeds the dictionary with the 256 single-byte symbols.
+LZ78 encodes and decodes using a dictionary of already-seen sequences.
+During encoding, novel sequences continue to be added.  In this way the
+encoding identifies sequences by a dictionary index of the longest
+previously-seen sequence.  The decoder is running the same dictionary-
+update algorithm so it can interpret the index numbers.  LZW seeds the
+dictionary with the 256 single-byte symbols. 
+
+Encoding the English dictionary using LZW achieves quite a bit more
+compression that Huffman encoding. Huffman coding at order 1 (byte
+frequency forming the basis of bit code assignments) is surpassed
+considerably by LZW which uses the higher order (digram, trigram,
+etc) repetition patterns that are characteristic of text.
 
 Example
 -------
