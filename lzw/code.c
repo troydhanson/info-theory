@@ -49,34 +49,15 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
 void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
-  /* get a free sequence structure or recycle */
-  if (s->seq_used < s->max_dict_entries) 
-    q = &s->seq_all[ s->seq_used++ ];
-  else {
-    return; // hard limit FIXME
-    /* recycle the seq with fewest occurences. 
-     * single-bytes are exempt from recycling. */
+  /* our dictionary has a hard limit- no recycling */
+  if (s->seq_used == s->max_dict_entries) return;
 
-    /* sorting it each time is just too slow. */
-    // HASH_SORT(s->dict, sequence_frequency_sort);
-
-    /* picking the first multibyte sequence the hard way */
-    // q = s->dict; while(q->l == 1) q=q->hh.next; 
-
-    /* eject the first multibyte sequence */
-    q = &s->dict[256];
-    HASH_DEL(s->dict, q);
-  }
-
-  /* reset the structure */
-#if 1
+  q = &s->seq_all[ s->seq_used++ ];
   q->hits = 0;
   q->l = len;
   q->s = seq;
-
   HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
-#endif
 }
 
 int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
