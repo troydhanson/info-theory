@@ -4,7 +4,7 @@ LZW encoding
 Back up [parent page](https://github.com/troydhanson/info-theory).
 
 Lempel-Ziv's LZ77/LZ78 compression methods are the basis of LZW (1984).
-Terry Welch described LZW in an article IEEE Computer magazine [pdf]
+Terry Welch described LZW in an article IEEE Computer magazine [(pdf)]
 (welch_1984_lzw.pdf).
 
 LZ78 encodes and decodes using a dictionary of already-seen sequences.
@@ -19,6 +19,8 @@ compression that Huffman encoding. Huffman coding at order 1 (byte
 frequency forming the basis of bit code assignments) is surpassed
 considerably by LZW which uses the higher order (digram, trigram,
 etc) repetition patterns that are characteristic of text.
+
+This implementation uses variable-width bit codes. 
 
 Example
 -------
