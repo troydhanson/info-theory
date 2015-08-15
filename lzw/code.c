@@ -55,9 +55,15 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   else {
     /* recycle the seq with fewest occurences. 
      * single-bytes are exempt from recycling. */
-    HASH_SORT(s->dict, sequence_frequency_sort);
-    q = s->dict;
-    while(q->l == 1) q=q->hh.next; 
+
+    /* sorting it each time is just too slow. */
+    // HASH_SORT(s->dict, sequence_frequency_sort);
+
+    /* picking the first multibyte sequence the hard way */
+    // q = s->dict; while(q->l == 1) q=q->hh.next; 
+
+    /* eject the first multibyte sequence */
+    q = &s->dict[256];
     HASH_DEL(s->dict, q);
   }
 
@@ -187,11 +193,14 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
     i += sizeof(*olen);
 
     unsigned long _x=0; /* index (x) of the previous iteration */
-    int first_time=1;
+    int bump;           /* this is 1 if we reason that the encoder 
+                         * dictionary is now one larger than ours */
+    int first_time=1;   /* first time decoding a symbol */
 
     while (o - ob < *olen) {
       x = 0;
-      b = get_num_bits(s,!first_time);
+      bump = first_time ? 0 : ((HASH_COUNT(s->dict) == s->max_dict_entries) ? 0 : 1);
+      b = get_num_bits(s, bump);
       if ((i + b/8 + ((b%8) ? 1 : 0)) > ib + ilen) goto done;
       while(b--) {
         if (BIT_TEST(i,p)) x |= (1U << b);
