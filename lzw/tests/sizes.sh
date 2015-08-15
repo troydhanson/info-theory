@@ -11,11 +11,9 @@
 H=../lzw
 if [ ! -x $H ]; then echo "run make in parent directory first"; fi
 
-dd if=/dev/urandom of=/tmp/rand bs=1 count=100000 >/dev/null 2>&1
+#dd if=/dev/urandom of=/tmp/rand bs=1 count=100000 >/dev/null 2>&1
 
-echo "testing compressing with 4 dictionary sizes on various files"
-
-for RAW in raw /usr/share/dict/words /tmp/rand
+for RAW in raw /usr/share/dict/words #/tmp/rand
 do
   echo -en "original file: "; ls -ltH $RAW
 

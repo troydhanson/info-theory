@@ -16,12 +16,3 @@ $V $H -e -i raw -o cwh
 $V $H -d -i cwh -o bak
 diff raw bak
 
-# encode (saving the code book externally), decode using it
-$V $H -e -i raw -o cwo -C cbk
-$V $H -d -i cwo -o bak -c cbk
-diff raw bak
-
-# encode (using the code book from above), decode using it
-$V $H -e -i raw -o cwo -c cbk
-$V $H -d -i cwo -o bak -c cbk
-diff raw bak
