@@ -195,7 +195,22 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
         p++;
       }
       fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s,!first_time));
-      if (x >= HASH_COUNT(s->dict)) goto done;
+      if (x > HASH_COUNT(s->dict)) goto done;
+
+      /* special case KwKwK (see LZW article); code refers to just-
+      *  created code that the compressor immediately used to encode.
+      *  it's not in our dictionary yet, but we know what it must be.
+       * re-emit previous code suffixed with its first character. */
+      if ((x == HASH_COUNT(s->dict)) && !first_time) { 
+        if (o + s->seq_all[_x].l + 1 > ob + olen) goto done;
+        memcpy(o, s->seq_all[_x].s, s->seq_all[_x].l);
+        o[s->seq_all[_x].l] = s->seq_all[_x].s[0];
+        add_seq(s, o, s->seq_all[_x].l + 1);
+        o += s->seq_all[_x].l + 1;
+        _x = x;
+        continue;
+      }
+
       if (o + s->seq_all[x].l > ob + olen) goto done;
       if (s->seq_all[x].l == 0) goto done;
       memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
@@ -206,7 +221,7 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
       if (first_time) first_time=0;
       else {
         l = s->seq_all[_x].l + s->seq_all[x].l;
-        add_seq(s, o - l, l);
+        add_seq(s, o - l, s->seq_all[_x].l + 1);
       }
       _x = x;
     }
