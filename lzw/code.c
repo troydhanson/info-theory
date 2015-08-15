@@ -53,6 +53,7 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   if (s->seq_used < s->max_dict_entries) 
     q = &s->seq_all[ s->seq_used++ ];
   else {
+    return; // hard limit FIXME
     /* recycle the seq with fewest occurences. 
      * single-bytes are exempt from recycling. */
 
@@ -68,12 +69,14 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   }
 
   /* reset the structure */
+#if 1
   q->hits = 0;
   q->l = len;
   q->s = seq;
 
   HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
+#endif
 }
 
 int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
