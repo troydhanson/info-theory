@@ -124,19 +124,11 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
-
-  /* require dictionary to be at least 256 single bytes + "some" sequences */
-  if (CF.s.max_dict_entries < 512) usage();
+  if (CF.s.max_dict_entries < 512) usage(); /* bytes + some sequences */
 
   if (mmap_input() < 0) goto done;
-
   CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
-
-  if (CF.mode & MODE_SAVE_CODES) {
-    hc = lzw_save_codebook(CF.codefile, &CF.s);
-    if (hc < 0) goto done; 
-  }
 
   rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.olen, &CF.s);
   if (rc) { 
@@ -149,6 +141,10 @@ int main(int argc, char *argv[]) {
     goto done;
   }
 
+  if (CF.mode & MODE_SAVE_CODES) {
+    hc = lzw_save_codebook(CF.codefile, &CF.s);
+    if (hc < 0) goto done; 
+  }
 
  done:
   if (CF.ibuf) munmap(CF.ibuf, CF.ilen);

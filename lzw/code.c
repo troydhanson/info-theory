@@ -3,11 +3,6 @@
 #include <stdio.h>
 #include "code.h"
 
-void lzw_release(symbol_stats *s) {
-  HASH_CLEAR(hh, s->dict);
-  if (s->seq_all) free(s->seq_all);
-}
-
 size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *obits, symbol_stats *s)
 {
@@ -220,3 +215,12 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
   return rc;
 }
 
+void lzw_release(symbol_stats *s) {
+  HASH_CLEAR(hh, s->dict);
+  if (s->seq_all) free(s->seq_all);
+}
+
+int lzw_save_codebook(char *file, symbol_stats *s) {
+  assert(0); /* TODO */
+  return 0;
+}
