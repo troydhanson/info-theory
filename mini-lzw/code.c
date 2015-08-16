@@ -70,8 +70,8 @@ int mlzw_load(symbol_stats *s, char *file) {
  * in doing so this implementation uses variable-width indexes
  * into the dictionary. the encoder and decoder sync permits it.
  */
-static unsigned char get_num_bits(symbol_stats *s, int post) {
-  unsigned long d = HASH_COUNT(s->dict) + post;
+static unsigned char get_num_bits(symbol_stats *s, int bump) {
+  unsigned long d = HASH_COUNT(s->dict) + bump;
   assert(d >= 256); /* one-byte seqs always in the dict */
 
   /* let b = log2(d) rounded up to a whole integer. this is
@@ -216,7 +216,37 @@ void mlzw_release(symbol_stats *s) {
   if (s->seq_all) free(s->seq_all);
 }
 
-int mlzw_save_codebook(char *file, symbol_stats *s) {
-  assert(0); /* TODO */
-  return 0;
+#define _write(f,b,l)                    \
+do {                                     \
+  int nr;                                \
+  if ( (nr = write(f,b,l)) != l) {       \
+    fprintf(stderr,"write: %s\n", nr<0 ? \
+     strerror(errno) : "incomplete");    \
+     goto done;                          \
+  }                                      \
+} while(0)
+
+int mlzw_save_codebook(symbol_stats *s, char *file) {
+  int fd=-1, rc = -1;
+  struct seq *q;
+  size_t i;
+
+  fd = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+  if (fd == -1) {
+    fprintf(stderr, "open %s: %s\n", file, strerror(errno));
+    goto done;
+  }
+
+  _write(fd, &s->seq_used, sizeof(s->seq_used));
+  for(i=0; i < s->seq_used; i++) {
+    q = &s->seq_all[i];
+    _write(fd, &q->l, sizeof(q->l)); /* write length */
+    _write(fd,  q->s,        q->l);  /* write seq    */
+  }
+
+  rc = 0;
+
+ done:
+  if (fd != -1) close(fd);
+  return rc;
 }

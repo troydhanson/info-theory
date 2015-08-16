@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
       case 'o': CF.ofile = strdup(optarg); break;
       case 'D': CF.s.max_dict_entries = atoi(optarg); break;
       case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
-      case 'C': CF.mode |= MODE_SAVE_CODES; /* fall through */
+      case 'C': CF.mode |= MODE_MAKE_CODES; /* fall through */
       case 'c': CF.codefile = strdup(optarg); break;
       case 'h': default: usage(); break;
     }
@@ -126,18 +126,16 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
-  if ((CF.mode & MODE_DECODE) && (CF.mode & MODE_SAVE_CODES)) usage();
+  if ((CF.mode & MODE_DECODE) && (CF.mode & MODE_MAKE_CODES)) usage();
   if (CF.codefile == NULL) usage();
   if (CF.s.max_dict_entries < 512) usage();
 
   if (mmap_input() < 0) goto done;
 
-  if (CF.mode & MODE_SAVE_CODES) {
+  if (CF.mode & MODE_MAKE_CODES) {
     if (mlzw_init(&CF.s) < 0) goto done;
   } else {
-    if (mlzw_init(&CF.s) < 0) goto done;
-    /* FIXME */ 
-    //if (mlzw_load(&CF.s, CF.codefile) < 0) goto done;
+    if (mlzw_load(&CF.s, CF.codefile) < 0) goto done;
   }
 
   /* this call (with NULL output buffer) asks for output buffer len */
@@ -157,8 +155,8 @@ int main(int argc, char *argv[]) {
     goto done;
   }
 
-  if (CF.mode & MODE_SAVE_CODES) {
-    hc = mlzw_save_codebook(CF.codefile, &CF.s);
+  if (CF.mode & MODE_MAKE_CODES) {
+    hc = mlzw_save_codebook(&CF.s, CF.codefile);
     if (hc < 0) goto done; 
   }
 
