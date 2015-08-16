@@ -3,8 +3,7 @@
 #include <stdio.h>
 #include "code.h"
 
-size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
-     size_t *obits, symbol_stats *s)
+size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, symbol_stats *s)
 {
   size_t olen = 0;
 
@@ -14,17 +13,13 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
    * So we use a large size and after encoding truncate to actual. */
   if (mode & MODE_ENCODE) {
     olen = ilen * 2;
-    *obits = olen*8;
   }
 
   /* in _decoding_ we know the output size because we stored it. */
   if (mode & MODE_DECODE) {
     if (ib + sizeof(olen) > ib + ilen) goto done;
     memcpy(&olen, ib, sizeof(olen));
-    *obits = olen*8;
   }
-
-  olen = (*obits/8) + ((*obits % 8) ? 1 : 0);
 
  done:
   return olen;

@@ -39,10 +39,10 @@ typedef struct {
 
 int lzw_init(symbol_stats *s);
 void lzw_release(symbol_stats *s);
+size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, 
+                        symbol_stats *s);
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
                size_t *olen, symbol_stats *s);
-size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, 
-               size_t *obits, symbol_stats *s);
 int lzw_save_codebook(char *file, symbol_stats *s);
 
 #endif /* _LZCODE_H_ */

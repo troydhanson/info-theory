@@ -23,11 +23,11 @@ struct {
 
   char *ifile;
   unsigned char *ibuf;
-  size_t ilen, ibits;
+  size_t ilen;
 
   char *ofile;
   unsigned char *obuf;
-  size_t olen, obits;
+  size_t olen;
 
   symbol_stats s;
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
   if (mmap_input() < 0) goto done;
 
   if (lzw_init(&CF.s) < 0) goto done;
-  CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
+  CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.s);
   if (mmap_output() < 0) goto done;
 
   rc = lzw_recode(CF.mode, CF.ibuf, CF.ilen, CF.obuf, &CF.olen, &CF.s);
