@@ -14,6 +14,7 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
    * So we use a large size and after encoding truncate to actual. */
   if (mode & MODE_ENCODE) {
     olen = ilen * 2;
+    *obits = olen*8;
   }
 
   /* in _decoding_ we know the output size because we stored it. */
@@ -57,7 +58,7 @@ static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned lo
 }
 
 static unsigned char bytes_all[256];
-static int init_dict(symbol_stats *s) {
+int lzw_init(symbol_stats *s) {
   int rc = -1;
   size_t j;
 
@@ -119,8 +120,6 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
   size_t l;
   size_t p=0;
   size_t eop = (*olen)*8;
-
-  if (init_dict(s) < 0) goto done;
 
   if ((mode & MODE_ENCODE)) {
 

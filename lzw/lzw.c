@@ -124,9 +124,11 @@ int main(int argc, char *argv[]) {
   if ((!CF.ifile) || (!CF.ofile)) usage();
   if ((CF.mode & (MODE_ENCODE | MODE_DECODE)) == 0) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
-  if (CF.s.max_dict_entries < 512) usage(); /* bytes + some sequences */
+  if (CF.s.max_dict_entries < 512) usage();
 
   if (mmap_input() < 0) goto done;
+
+  if (lzw_init(&CF.s) < 0) goto done;
   CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
 
