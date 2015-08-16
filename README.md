@@ -12,5 +12,6 @@ Compression
 * [Shannon-Fano coding](/shannon-fano) 
 * [Huffman coding](/huffman) 
 * [LZW coding](/lzw) 
+* [Mini-LZW coding](/mini-lzw) 
 * [zlib](/zlib) 
 
