@@ -19,8 +19,6 @@ struct {
   int verbose;
   int mode;
 
-  char *codefile;
-
   char *ifile;
   unsigned char *ibuf;
   size_t ilen;
@@ -37,15 +35,13 @@ struct {
 
 
 void usage() {
-  fprintf(stderr,"usage: %s [-vlCD] -e|d -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"usage: %s [-vD] -e|d -i <file> -o <file>\n", CF.prog);
   fprintf(stderr,"          -e (encode)\n");
   fprintf(stderr,"          -d (decode)\n");
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
   fprintf(stderr,"          -v (verbose)\n");
   fprintf(stderr,"          -D [number] (max dictionary entries) [default:1M]\n");
-  fprintf(stderr,"          -l (display codes) [encode mode]\n");
-  fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
   exit(-1);
 }
 
@@ -104,18 +100,16 @@ int mmap_output(void) {
 }
 
 int main(int argc, char *argv[]) {
-  int opt, rc=-1, hc;
+  int opt, rc=-1;
   CF.prog = argv[0];
 
-  while ( (opt = getopt(argc,argv,"vedi:o:c:C:lD:h")) > 0) {
+  while ( (opt = getopt(argc,argv,"vedi:o:D:h")) > 0) {
     switch(opt) {
       case 'v': CF.verbose++; break;
       case 'e': CF.mode |= MODE_ENCODE; break;
       case 'd': CF.mode |= MODE_DECODE; break;
       case 'i': CF.ifile = strdup(optarg); break;
       case 'o': CF.ofile = strdup(optarg); break;
-      case 'C': CF.codefile = strdup(optarg); CF.mode |= MODE_SAVE_CODES; break;
-      case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
       case 'D': CF.s.max_dict_entries = atoi(optarg); break;
       case 'h': default: usage(); break;
     }
@@ -141,11 +135,6 @@ int main(int argc, char *argv[]) {
   if (truncate(CF.ofile, CF.olen) < 0) {
     fprintf(stderr,"truncate: %s\n", strerror(errno));
     goto done;
-  }
-
-  if (CF.mode & MODE_SAVE_CODES) {
-    hc = lzw_save_codebook(CF.codefile, &CF.s);
-    if (hc < 0) goto done; 
   }
 
  done:
