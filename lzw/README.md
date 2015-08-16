@@ -5,25 +5,31 @@ Back up [parent page](https://github.com/troydhanson/info-theory).
 
 Lempel-Ziv's LZ77/LZ78 compression methods are the basis of LZW
 described in a 1984 IEEE Computer [article](welch_1984_lzw.pdf).
+LZW encodes its input as a series of indexes into a running dictionary 
+of already-seen sequences. LZW seeds the dictionary with the 256 bytes.
 
-LZ78 encodes using a continually-updated dictionary of already-seen sequences.
-The encoding identifies sequences as a dictionary index to their longest
-previously-seen prefix sequence and a subsequent index of the following
-sequence. Their concatenation forms a novel sequence. This sequence is added
-to the dictionary. Next time it occurs it can be encoded as a single index.
+Encoding is a process of emitting indexes. As it works through the input,
+it considers successive symbols, making the sequence as long as possible
+while still in the dictionary of already-seen sequences. At some point the
+growing sequence is not in the dictionary. Now the encoder emits the index
+of the last sequence- (it's one symbol shorter; it was in the dictionary).
+It adds a dictionary entry for the new sequence (last sequence + symbol).
+Encoding resumes by starting a new sequence from the symbol position.
 
-The decoder runs the same dictionary-update algorithm - when it decodes an
-index, and emits the sequence it encodes, and goes on to the next index,
-the concatenation of the sequences is a novel sequence that goes into the 
-dictionary. Since the encoder and decoder are running the same algorithm
-they both generate the same dictionary at every point in time. The index
-numbers in the encoded buffer are thus valid in the decoder dictionary.
-There is no need to store the dictionary in the encoded buffer. LZW seeds the
-dictionary with the 256 singleton sequences (bytes).
+The decoder generates the same dictionary as the encoder while it works. 
+It decodes an index, and emits the sequence it encodes. It decodes the
+next index, concatenates the last sequence to the first symbol of this
+sequence, and puts this new sequence into the dictionary. The encoder and
+decoder build synchronized dictionaries; as each index from the encoder
+is encountered by the decoder, it adds the same dictionary entry as the
+encoder.  There is no need to store the dictionary in the encoded buffer. 
 
-This implementation uses a hash table to look up sequences in the dictionary
-during encoding.  It also stores dictionary indexes in the encoded buffer
-as variable-width bit codes based on the current dictionary size.
+The encoder checks if sequences are in the dictionary; the decoder converts
+index numbers to sequences. To meet these needs this implementation keeps
+dictionary entries simultaneously in an array and in a hash table.
+
+Dictionary indexes appear as variable-width bit codes in the encoded buffer.
+Their width varies as the log of the dictionary size during encoding.
 
 Encoding the English dictionary using LZW achieves quite a bit more
 compression that Huffman encoding. Huffman coding at order 1 (byte

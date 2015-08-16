@@ -8,16 +8,6 @@ void lzw_release(symbol_stats *s) {
   if (s->seq_all) free(s->seq_all);
 }
 
-int lzw_load_codebook(char *file, symbol_stats *s) {
-  int rc = -1;
-  return rc;
-}
-
-int lzw_save_codebook(char *file, symbol_stats *s) {
-  int rc = -1;
-  return rc;
-}
-
 size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen, 
      size_t *obits, symbol_stats *s)
 {
@@ -46,7 +36,7 @@ size_t lzw_compute_olen( int mode, unsigned char *ib, size_t ilen,
 
 /* the memory pointed to by seq must be static through the 
  * lifetime of encoding or decoding the buffer */
-void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
+static void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
   /* our dictionary has a hard limit- no recycling */
@@ -60,7 +50,7 @@ void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 }
 
-int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
+static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
   struct seq *q;
 
   HASH_FIND(hh, s->dict, seq, len, q);
@@ -72,7 +62,7 @@ int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *ind
 }
 
 static unsigned char bytes_all[256];
-int init_dict(symbol_stats *s) {
+static int init_dict(symbol_stats *s) {
   int rc = -1;
   size_t j;
 
@@ -101,7 +91,7 @@ int init_dict(symbol_stats *s) {
  * in doing so this implementation uses variable-width indexes
  * into the dictionary. the encoder and decoder sync permits it.
  */
-unsigned char get_num_bits(symbol_stats *s, int post) {
+static unsigned char get_num_bits(symbol_stats *s, int post) {
   unsigned long d = HASH_COUNT(s->dict) + post;
   assert(d >= 256); /* one-byte seqs always in the dict */
 
@@ -129,14 +119,15 @@ unsigned char get_num_bits(symbol_stats *s, int post) {
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
      size_t *olen, symbol_stats *s) {
   unsigned char b, *i=ib, *o=ob;
-  unsigned long x;
+  unsigned long x=0;
   int rc = -1;
   size_t l;
-  size_t p=0; 
+  size_t p=0;
   size_t eop = (*olen)*8;
 
+  if (init_dict(s) < 0) goto done;
+
   if ((mode & MODE_ENCODE)) {
-    if (init_dict(s) < 0) goto done;
 
     /* store length of decoded buffer */
     if (o + sizeof(ilen) > ib + ilen) goto done;
@@ -146,20 +137,13 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
     /* LZW encode input buffer */
     l = 1;
     while(1) {
-
       /* sequence starts at i for length l */
 
-      /* does sequence extend over buffer end? */
-      if (i+l > ib+ilen) {
-        if (l > 1) emit(); /* emit previous */
-        break;
-      }
+      /* would sequence extend over buffer end? */
+      if (i+l > ib+ilen) { if (l > 1) emit(); break; }
 
       /* is this sequence in the dictionary? */
-      if (have_seq(s, i, l, &x)) {
-        l++;
-        continue;
-      }
+      if (have_seq(s, i, l, &x)) { l++; continue; }
 
       /* the sequence is not in the dictionary */
       emit();            /* emit previous */
@@ -173,17 +157,20 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
   }
 
   if ((mode & MODE_DECODE)) {
-    if (init_dict(s) < 0) goto done;
 
     /* skip length */
     i += sizeof(*olen);
 
     unsigned long _x=0; /* index (x) of the previous iteration */
-    int bump;           /* this is 1 if we reason that the encoder 
-                         * dictionary is now one larger than ours */
     int first_time=1;   /* first time decoding a symbol */
+    int bump;           /* 1 when encoder dictionary is ours+1 */
 
     while (o - ob < *olen) {
+
+      /* x is the index number we're gathering from the encoded buffer.
+         first we need to figure out how many bits wide x is, because
+         this implementation uses a variable-width encoding. then we 
+         shift those 'b' bits into x. */
       x = 0;
       bump = first_time ? 0 : ((HASH_COUNT(s->dict) == s->max_dict_entries) ? 0 : 1);
       b = get_num_bits(s, bump);
@@ -192,7 +179,8 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
         if (BIT_TEST(i,p)) x |= (1U << b);
         p++;
       }
-      //fprintf(stderr,"got index %lu (in %u bits)\n",x,get_num_bits(s,!first_time));
+      //fprintf(stderr,"got index %lu in %u bits\n",x,get_num_bits(s,bump));
+
       if (x > HASH_COUNT(s->dict)) goto done;
 
       /* special case KwKwK (see LZW article); code refers to just-
@@ -209,13 +197,14 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
         continue;
       }
 
+      /* normal case. output the bytes of sequence x */
       if (o + s->seq_all[x].l > ob + *olen) goto done;
       if (s->seq_all[x].l == 0) goto done;
       memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
       o += s->seq_all[x].l;
       s->seq_all[x].hits++;
 
-      /* add concatenated previous seq + extension */
+      /* add to dict previous seq + extension */
       if (first_time) first_time=0;
       else {
         l = s->seq_all[_x].l + s->seq_all[x].l;

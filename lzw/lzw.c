@@ -37,7 +37,7 @@ struct {
 
 
 void usage() {
-  fprintf(stderr,"usage: %s [-vlcCD] -e|d -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"usage: %s [-vlCD] -e|d -i <file> -o <file>\n", CF.prog);
   fprintf(stderr,"          -e (encode)\n");
   fprintf(stderr,"          -d (decode)\n");
   fprintf(stderr,"          -i (input file)\n");
@@ -45,7 +45,6 @@ void usage() {
   fprintf(stderr,"          -v (verbose)\n");
   fprintf(stderr,"          -D [number] (max dictionary entries) [default:1M]\n");
   fprintf(stderr,"          -l (display codes) [encode mode]\n");
-  fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
   fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
   exit(-1);
 }
@@ -115,7 +114,6 @@ int main(int argc, char *argv[]) {
       case 'd': CF.mode |= MODE_DECODE; break;
       case 'i': CF.ifile = strdup(optarg); break;
       case 'o': CF.ofile = strdup(optarg); break;
-      case 'c': CF.codefile = strdup(optarg); CF.mode |= MODE_USE_SAVED_CODES;  break;
       case 'C': CF.codefile = strdup(optarg); CF.mode |= MODE_SAVE_CODES; break;
       case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
       case 'D': CF.s.max_dict_entries = atoi(optarg); break;
@@ -131,11 +129,6 @@ int main(int argc, char *argv[]) {
   if (CF.s.max_dict_entries < 512) usage();
 
   if (mmap_input() < 0) goto done;
-
-  if (CF.mode & MODE_USE_SAVED_CODES) {
-    hc = lzw_load_codebook(CF.codefile, &CF.s);
-    if (hc < 0) goto done; 
-  }
 
   CF.olen = lzw_compute_olen(CF.mode, CF.ibuf, CF.ilen, &CF.obits, &CF.s);
   if (mmap_output() < 0) goto done;
