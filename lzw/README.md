@@ -3,10 +3,10 @@ LZW encoding
 
 Back up [parent page](https://github.com/troydhanson/info-theory).
 
-Lempel-Ziv's LZ77/LZ78 compression methods are the basis of LZW
-described in a 1984 IEEE Computer [article](welch_1984_lzw.pdf).
-LZW encodes its input as a series of indexes into a running dictionary 
-of already-seen sequences. LZW seeds the dictionary with the 256 bytes.
+Lempel-Ziv's LZ77/LZ78 compression methods are the basis of LZW,
+described in Welch's 1984 IEEE Computer [article](welch_1984_lzw.pdf).
+LZW encodes its input as a series of indexes into a running dictionary.
+LZW seeds the dictionary with the 256 singleton "sequences"- the bytes.
 
 Encoding is a process of emitting indexes. As it works through the input,
 it considers successive symbols, making the sequence as long as possible
@@ -14,15 +14,15 @@ while still in the dictionary of already-seen sequences. At some point the
 growing sequence is not in the dictionary. Now the encoder emits the index
 of the last sequence- (it's one symbol shorter; it was in the dictionary).
 It adds a dictionary entry for the new sequence (last sequence + symbol).
-Encoding resumes by starting a new sequence from the symbol position.
+Encoding resumes by growing a new sequence from the symbol position.
 
-The decoder generates the same dictionary as the encoder while it works. 
-It decodes an index, and emits the sequence it encodes. It decodes the
-next index, concatenates the last sequence to the first symbol of this
-sequence, and puts this new sequence into the dictionary. The encoder and
-decoder build synchronized dictionaries; as each index from the encoder
-is encountered by the decoder, it adds the same dictionary entry as the
-encoder.  There is no need to store the dictionary in the encoded buffer. 
+The decoder reads an index, and emits the sequence it encodes. When it 
+reads the next index, and emits the sequence it encodes, it also stores in 
+the dictionary a new entry (the first symbol appended to the last sequence).
+So, the decoder generates the same dictionary as the encoder while it works. 
+As each index from the encoder is encountered by the decoder, it adds the same
+dictionary entry as the encoder did when it produced that index.  There is no
+need to store the dictionary in the encoded buffer. 
 
 The encoder checks if sequences are in the dictionary; the decoder converts
 index numbers to sequences. To meet these needs this implementation keeps
