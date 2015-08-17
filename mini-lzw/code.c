@@ -250,3 +250,30 @@ int mlzw_save_codebook(symbol_stats *s, char *file) {
   if (fd != -1) close(fd);
   return rc;
 }
+#define _ascii(x) ((x >= 0x20) && (x <= 0x7e) ? x : '.')
+int mlzw_show_codebook(symbol_stats *s) {
+  int rc = -1, w, b;
+  size_t i, j, l=0;
+  struct seq *q;
+
+  for(i=0; i < s->seq_used; i++) l += s->seq_all[i].l;
+  w = get_num_bits(s,0);
+
+  fprintf(stderr,"LZW dictionary:\n");
+  fprintf(stderr,"  sequences:  %10lu\n", s->seq_used);
+  fprintf(stderr,"  seq bytes:  %10lu\n", l);
+  fprintf(stderr,"  bit width:  %10u\n",  w);
+ 
+  for(i=0; i < s->seq_used; i++) {
+    q = &s->seq_all[i];
+
+    /* emit bit code, sequence length, and ascii in sequence */
+    b=w; while(b--) fprintf(stderr, "%c", ((i >> b) & 1) ? '1' : '0');
+    fprintf(stderr, " %lu ", q->l);
+    j = q->l; while(j--) fprintf(stderr, "%c", _ascii( q->s[j] ));
+    fprintf(stderr, "\n");
+  }
+
+  rc = 0;
+  return rc;
+}

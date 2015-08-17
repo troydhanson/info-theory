@@ -35,11 +35,12 @@ typedef struct {
 #define MODE_ENCODE          (1U << 0)
 #define MODE_DECODE          (1U << 1)
 #define MODE_MAKE_CODES      (1U << 2)
-#define MODE_DISPLAY_CODES   (1U << 3)
+#define MODE_SHOW_CODES      (1U << 3)
 
 int mlzw_init(symbol_stats *s);
 int mlzw_load(symbol_stats *s, char *file );
 int mlzw_save_codebook(symbol_stats *s, char *file);
+int mlzw_show_codebook(symbol_stats *s);
 void mlzw_release(symbol_stats *s);
 int mlzw_recode(int mode, symbol_stats *s, unsigned char *ib, size_t ilen, 
                 unsigned char *ob, size_t *olen);

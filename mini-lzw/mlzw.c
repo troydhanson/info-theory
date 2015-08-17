@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
       case 'i': CF.ifile = strdup(optarg); break;
       case 'o': CF.ofile = strdup(optarg); break;
       case 'D': CF.s.max_dict_entries = atoi(optarg); break;
-      case 'l': CF.mode |= MODE_DISPLAY_CODES; break;
+      case 'l': CF.mode |= MODE_SHOW_CODES; break;
       case 'C': CF.mode |= MODE_MAKE_CODES; /* fall through */
       case 'c': CF.codefile = strdup(optarg); break;
       case 'h': default: usage(); break;
@@ -157,6 +157,11 @@ int main(int argc, char *argv[]) {
 
   if (CF.mode & MODE_MAKE_CODES) {
     hc = mlzw_save_codebook(&CF.s, CF.codefile);
+    if (hc < 0) goto done; 
+  }
+
+  if (CF.mode & MODE_SHOW_CODES) {
+    hc = mlzw_show_codebook(&CF.s);
     if (hc < 0) goto done; 
   }
 
