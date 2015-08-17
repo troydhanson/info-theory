@@ -29,7 +29,7 @@ struct {
   unsigned char *obuf;
   size_t olen;
 
-  symbol_stats s;
+  lzw s;
 
 } CF = {
   .s.max_dict_entries = 1048576, /* powers of two make the most of index bits */

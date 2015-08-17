@@ -25,7 +25,7 @@ typedef struct {
   struct seq *dict;
   size_t seq_used;
   size_t max_dict_entries;
-} symbol_stats;
+} lzw;
 
 /* standard bit vector macros */
 #define BIT_TEST(c,i)  ((c[(i)/8] &  (1 << ((i) % 8))) ? 1 : 0)
@@ -37,12 +37,12 @@ typedef struct {
 #define MODE_MAKE_CODES      (1U << 2)
 #define MODE_SHOW_CODES      (1U << 3)
 
-int mlzw_init(symbol_stats *s);
-int mlzw_load(symbol_stats *s, char *file );
-int mlzw_save_codebook(symbol_stats *s, char *file);
-int mlzw_show_codebook(symbol_stats *s);
-void mlzw_release(symbol_stats *s);
-int mlzw_recode(int mode, symbol_stats *s, unsigned char *ib, size_t ilen, 
+int mlzw_init(lzw *s);
+int mlzw_load(lzw *s, char *file );
+int mlzw_save_codebook(lzw *s, char *file);
+int mlzw_show_codebook(lzw *s);
+void mlzw_release(lzw *s);
+int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
                 unsigned char *ob, size_t *olen);
 
 #endif /* _LZCODE_H_ */

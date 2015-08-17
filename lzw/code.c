@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "code.h"
 
-size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, symbol_stats *s)
+size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, lzw *s)
 {
   size_t olen = 0;
 
@@ -27,7 +27,7 @@ size_t lzw_compute_olen(int mode, unsigned char *ib, size_t ilen, symbol_stats *
 
 /* the memory pointed to by seq must be static through the 
  * lifetime of encoding or decoding the buffer */
-static void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
+static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
   /* our dictionary has a hard limit- no recycling */
@@ -41,7 +41,7 @@ static void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 }
 
-static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
+static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *index) {
   struct seq *q;
 
   HASH_FIND(hh, s->dict, seq, len, q);
@@ -53,7 +53,7 @@ static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned lo
 }
 
 static unsigned char bytes_all[256];
-int lzw_init(symbol_stats *s) {
+int lzw_init(lzw *s) {
   int rc = -1;
   size_t j;
 
@@ -82,7 +82,7 @@ int lzw_init(symbol_stats *s) {
  * in doing so this implementation uses variable-width indexes
  * into the dictionary. the encoder and decoder sync permits it.
  */
-static unsigned char get_num_bits(symbol_stats *s, int post) {
+static unsigned char get_num_bits(lzw *s, int post) {
   unsigned long d = HASH_COUNT(s->dict) + post;
   assert(d >= 256); /* one-byte seqs always in the dict */
 
@@ -108,7 +108,7 @@ static unsigned char get_num_bits(symbol_stats *s, int post) {
  } while(0)
 
 int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob, 
-     size_t *olen, symbol_stats *s) {
+     size_t *olen, lzw *s) {
   unsigned char b, *i=ib, *o=ob;
   unsigned long x=0;
   int rc = -1;
@@ -209,12 +209,8 @@ int lzw_recode(int mode, unsigned char *ib, size_t ilen, unsigned char *ob,
   return rc;
 }
 
-void lzw_release(symbol_stats *s) {
+void lzw_release(lzw *s) {
   HASH_CLEAR(hh, s->dict);
   if (s->seq_all) free(s->seq_all);
 }
 
-int lzw_save_codebook(char *file, symbol_stats *s) {
-  assert(0); /* TODO */
-  return 0;
-}

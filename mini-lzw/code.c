@@ -5,7 +5,7 @@
 
 /* the memory pointed to by seq must be static through the 
  * lifetime of encoding or decoding the buffer */
-static void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
+static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   struct seq *q;
 
   /* our dictionary has a hard limit- no recycling */
@@ -19,7 +19,7 @@ static void add_seq(symbol_stats *s, unsigned char *seq, size_t len) {
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 }
 
-static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned long *index) {
+static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *index) {
   struct seq *q;
 
   HASH_FIND(hh, s->dict, seq, len, q);
@@ -31,7 +31,7 @@ static int have_seq(symbol_stats *s, unsigned char *seq, size_t len, unsigned lo
 }
 
 static unsigned char bytes_all[256];
-int mlzw_init(symbol_stats *s) {
+int mlzw_init(lzw *s) {
   int rc = -1;
   size_t j;
 
@@ -55,7 +55,7 @@ int mlzw_init(symbol_stats *s) {
 }
 
 /* used instead of mlzw_init to read a saved dictionary */
-int mlzw_load(symbol_stats *s, char *file) {
+int mlzw_load(lzw *s, char *file) {
   int rc = -1;
 
   rc = 0;
@@ -70,7 +70,7 @@ int mlzw_load(symbol_stats *s, char *file) {
  * in doing so this implementation uses variable-width indexes
  * into the dictionary. the encoder and decoder sync permits it.
  */
-static unsigned char get_num_bits(symbol_stats *s, int bump) {
+static unsigned char get_num_bits(lzw *s, int bump) {
   unsigned long d = HASH_COUNT(s->dict) + bump;
   assert(d >= 256); /* one-byte seqs always in the dict */
 
@@ -95,7 +95,7 @@ static unsigned char get_num_bits(symbol_stats *s, int bump) {
    s->seq_all[x].hits++;                                      \
  } while(0)
 
-int mlzw_recode(int mode, symbol_stats *s, unsigned char *ib, size_t ilen, 
+int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
                 unsigned char *ob, size_t *olen) {
   unsigned char b, *i=ib, *o=ob;
   unsigned long x=0;
@@ -211,7 +211,7 @@ int mlzw_recode(int mode, symbol_stats *s, unsigned char *ib, size_t ilen,
   return rc;
 }
 
-void mlzw_release(symbol_stats *s) {
+void mlzw_release(lzw *s) {
   HASH_CLEAR(hh, s->dict);
   if (s->seq_all) free(s->seq_all);
 }
@@ -226,7 +226,7 @@ do {                                     \
   }                                      \
 } while(0)
 
-int mlzw_save_codebook(symbol_stats *s, char *file) {
+int mlzw_save_codebook(lzw *s, char *file) {
   int fd=-1, rc = -1;
   struct seq *q;
   size_t i;
@@ -251,7 +251,7 @@ int mlzw_save_codebook(symbol_stats *s, char *file) {
   return rc;
 }
 #define is_ascii(x) ((x >= 0x20) && (x <= 0x7e))
-int mlzw_show_codebook(symbol_stats *s) {
+int mlzw_show_codebook(lzw *s) {
   int rc = -1, w, b;
   size_t i, j, l=0;
   unsigned char x;

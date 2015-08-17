@@ -33,7 +33,7 @@ that fixed dictionary.
 The mlzw command is demonstrating the underlying C API which is the real
 purpose of mini-lzw.
 
-    dict = mlzw_load_dictionary("names.lzw");
+    mlzw_load(dict, "names.lzw");
     rc = mlzw_recode(mode, dict, input, input_len, output, &output_len);
     if (rc < 0) ...
 
