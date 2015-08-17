@@ -21,20 +21,20 @@ encoded stream). Both of these requirements can be met by using a fixed LZW
 dictionary and a fixed bitcode length for the encoded indexes.
 
 First, generate a good LZW dictionary on a suitably-large data sample. Here
-we fix the dictionary to contain one million sequences at most.
+we generate a dictionary with up to one million sequences.
 
-    % ./mlzw -C names.lzw -i census-names.in -o census-names.out -D 1000000
+    % ./mlzw -e -i census-names.in -o census-names.out -C dict -D 1000000
 
-Now the dictionary file `names.lzw` can be used to encode or decode with
-that fixed dictionary.
+Now the dictionary file can be used to encode and decode:
 
-    % ./mlzw -c names.lzw -i names.in -o names.out 
+    % ./mlzw -e -i names.in  -o names.out -c dict 
+    % ./mlzw -d -i names.out -i names.org -c dict 
 
 The mlzw command is demonstrating the underlying C API which is the real
 purpose of mini-lzw.
 
-    mlzw_load(dict, "names.lzw");
-    rc = mlzw_recode(mode, dict, input, input_len, output, &output_len);
+    mlzw_load(lzw, "names.lzw");
+    rc = mlzw_recode(mode, lzw, input, input_len, output, &output_len);
     if (rc < 0) ...
 
 
