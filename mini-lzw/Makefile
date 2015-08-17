@@ -4,6 +4,7 @@ all: $(PROGS)
 
 #CFLAGS += -g
 CFLAGS += -O2 -DNDEBUG
+#CFLAGS += -DHASH_EMIT_KEYS=3
 CFLAGS += -Wall 
 
 $(OBJS): %.o: %.c code.h

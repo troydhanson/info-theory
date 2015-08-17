@@ -16,7 +16,6 @@
 struct seq {
   unsigned char *s;  /* sequence bytes */
   size_t l;          /* sequence length */
-  unsigned hits;
   UT_hash_handle hh;
 };
 

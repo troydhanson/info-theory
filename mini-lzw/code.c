@@ -12,7 +12,6 @@ static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   if (s->seq_used == s->max_dict_entries) return;
 
   q = &s->seq_all[ s->seq_used++ ];
-  q->hits = 0;
   q->l = len;
   q->s = seq;
   HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
@@ -82,7 +81,6 @@ static unsigned char get_num_bits(lzw *s, int bump) {
      if ((x >> b) & 1) BIT_SET(o,p);                          \
      p++;                                                     \
    }                                                          \
-   s->seq_all[x].hits++;                                      \
  } while(0)
 
 int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
@@ -183,7 +181,6 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
       if (s->seq_all[x].l == 0) goto done;
       memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
       o += s->seq_all[x].l;
-      s->seq_all[x].hits++;
 
       /* add to dict previous seq + extension */
       if (first_time) first_time=0;
@@ -222,8 +219,7 @@ int mlzw_load(lzw *s, char *file) {
   int fd=-1, rc = -1;
   unsigned char *x;
   struct stat stat;
-  struct seq *q;
-  size_t i;
+  size_t i,l,m;
 
   fd = open(file, O_RDONLY);
   if (fd == -1) {
@@ -236,8 +232,8 @@ int mlzw_load(lzw *s, char *file) {
     goto done;
   }
 
-  _read(fd, &s->seq_used, sizeof(s->seq_used));
-  s->max_dict_entries = s->seq_used;
+  _read(fd, &m, sizeof(m));
+  s->max_dict_entries = m;
 
   /* allocate the dictionary as one contiguous buffer */
   s->seq_all = calloc(s->max_dict_entries, sizeof(struct seq));
@@ -253,19 +249,13 @@ int mlzw_load(lzw *s, char *file) {
     goto done;
   }
 
+  /* add the sequences from the save file into dictionary */
   x = s->x;
-  for(i=0; i < s->seq_used; i++) {
-    q = &s->seq_all[i];
-    _read(fd, &q->l, sizeof(q->l)); /* read length */
-    _read(fd, x, q->l);             /* read sequence into x */
-    q->s = x;                       /* point it into x */
-    x += q->l;                      /* advance x */
-  }
-
-  /* set up hash */
-  for(i=0; i < s->seq_used; i++) {
-    q = &s->seq_all[i];
-    HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
+  for(i=0; i < m; i++) {
+    _read(fd, &l, sizeof(l)); /* read sequence length */
+    _read(fd, x, l);          /* read sequence into x */
+    add_seq(s,x, l);
+    x += l;                   /* advance x */
   }
 
   rc = 0;
