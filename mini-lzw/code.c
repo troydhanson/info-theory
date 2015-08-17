@@ -54,16 +54,6 @@ int mlzw_init(lzw *s) {
   return rc;
 }
 
-/* used instead of mlzw_init to read a saved dictionary */
-int mlzw_load(lzw *s, char *file) {
-  int rc = -1;
-
-  rc = 0;
-
- done:
-  return rc;
-}
-
 /* while x is an index into s->seq_all, we cheat and encode it
  * as fewer bits. x really only indexes into s->seq_all up to
  * the current item count (d) of the dictionary hash table. 
@@ -214,6 +204,75 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
 void mlzw_release(lzw *s) {
   HASH_CLEAR(hh, s->dict);
   if (s->seq_all) free(s->seq_all);
+  if (s->x) free(s->x);
+}
+
+#define _read(f,b,l)                     \
+do {                                     \
+  int nr;                                \
+  if ( (nr = read(f,b,l)) != l) {        \
+    fprintf(stderr,"read: %s\n", nr<0 ?  \
+     strerror(errno) : "incomplete");    \
+     goto done;                          \
+  }                                      \
+} while(0)
+
+/* used instead of mlzw_init to read a saved dictionary */
+int mlzw_load(lzw *s, char *file) {
+  int fd=-1, rc = -1;
+  unsigned char *x;
+  struct stat stat;
+  struct seq *q;
+  size_t i;
+
+  fd = open(file, O_RDONLY);
+  if (fd == -1) {
+    fprintf(stderr, "open %s: %s\n", file, strerror(errno));
+    goto done;
+  }
+
+  if (fstat(fd, &stat) < 0) {
+    fprintf(stderr, "stat %s: %s\n", file, strerror(errno));
+    goto done;
+  }
+
+  _read(fd, &s->seq_used, sizeof(s->seq_used));
+  s->max_dict_entries = s->seq_used;
+
+  /* allocate the dictionary as one contiguous buffer */
+  s->seq_all = calloc(s->max_dict_entries, sizeof(struct seq));
+  if (s->seq_all == NULL) {
+    fprintf(stderr,"out of memory\n");
+    goto done;
+  }
+
+  /* this is where we'll store the sequence data */
+  s->x = calloc(1, stat.st_size);
+  if (s->x == NULL) {
+    fprintf(stderr,"out of memory\n");
+    goto done;
+  }
+
+  x = s->x;
+  for(i=0; i < s->seq_used; i++) {
+    q = &s->seq_all[i];
+    _read(fd, &q->l, sizeof(q->l)); /* read length */
+    _read(fd, x, q->l);             /* read sequence into x */
+    q->s = x;                       /* point it into x */
+    x += q->l;                      /* advance x */
+  }
+
+  /* set up hash */
+  for(i=0; i < s->seq_used; i++) {
+    q = &s->seq_all[i];
+    HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
+  }
+
+  rc = 0;
+
+ done:
+  if (fd != -1) close(fd);
+  return rc;
 }
 
 #define _write(f,b,l)                    \

@@ -25,6 +25,7 @@ typedef struct {
   struct seq *dict;
   size_t seq_used;
   size_t max_dict_entries;
+  unsigned char *x; /* sequence data read from a save file */
 } lzw;
 
 /* standard bit vector macros */
