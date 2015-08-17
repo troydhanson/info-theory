@@ -250,10 +250,11 @@ int mlzw_save_codebook(symbol_stats *s, char *file) {
   if (fd != -1) close(fd);
   return rc;
 }
-#define _ascii(x) ((x >= 0x20) && (x <= 0x7e) ? x : '.')
+#define is_ascii(x) ((x >= 0x20) && (x <= 0x7e))
 int mlzw_show_codebook(symbol_stats *s) {
   int rc = -1, w, b;
   size_t i, j, l=0;
+  unsigned char x;
   struct seq *q;
 
   for(i=0; i < s->seq_used; i++) l += s->seq_all[i].l;
@@ -264,13 +265,16 @@ int mlzw_show_codebook(symbol_stats *s) {
   fprintf(stderr,"  seq bytes:  %10lu\n", l);
   fprintf(stderr,"  bit width:  %10u\n",  w);
  
+  /* emit bit code, sequence length, and ascii in sequence */
   for(i=0; i < s->seq_used; i++) {
     q = &s->seq_all[i];
-
-    /* emit bit code, sequence length, and ascii in sequence */
     b=w; while(b--) fprintf(stderr, "%c", ((i >> b) & 1) ? '1' : '0');
     fprintf(stderr, " %lu ", q->l);
-    j = q->l; while(j--) fprintf(stderr, "%c", _ascii( q->s[j] ));
+    for(j=0; j < q->l; j++) {
+      x = q->s[j];
+      if (is_ascii(x)) fprintf(stderr, "%c", x);
+      else             fprintf(stderr, "\\x%02x", (int)x);
+    }
     fprintf(stderr, "\n");
   }
 

@@ -30,7 +30,7 @@ struct {
   symbol_stats s;
 
 } CF = {
-  .s.max_dict_entries = 1000000,
+  .s.max_dict_entries = 1048576, /* powers of two make the most of index bits */
 };
 
 
@@ -41,7 +41,7 @@ void usage() {
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
   fprintf(stderr,"          -v (verbose)\n");
-  fprintf(stderr,"          -D [number] (max dictionary entries) [default:1M]\n");
+  fprintf(stderr,"          -D [number] (max dictionary entries) [default: 1048576]\n");
   exit(-1);
 }
 
