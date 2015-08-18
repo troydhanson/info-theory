@@ -36,6 +36,7 @@ typedef struct {
 #define MODE_DECODE          (1U << 1)
 #define MODE_MAKE_CODES      (1U << 2)
 #define MODE_SHOW_CODES      (1U << 3)
+#define MODE_MICRODECODE     (1U << 4)
 
 int mlzw_init(lzw *s);
 int mlzw_load(lzw *s, char *file );
@@ -43,6 +44,10 @@ int mlzw_save_codebook(lzw *s, char *file);
 int mlzw_show_codebook(lzw *s);
 void mlzw_release(lzw *s);
 int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
+                unsigned char *ob, size_t *olen);
+
+/* microdecode - this only works for a pre-loaded dictionary */
+int mlzw_udecode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
                 unsigned char *ob, size_t *olen);
 
 #endif /* _LZCODE_H_ */
