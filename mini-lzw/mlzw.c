@@ -37,17 +37,17 @@ struct {
 
 
 void usage() {
-  fprintf(stderr,"usage: %s [-vlD] -c|C <file> -e|d|u -i <file> -o <file>\n", CF.prog);
+  fprintf(stderr,"usage: %s [-vlD] -c|C <file> -e|d -i <file> -o <file>\n", CF.prog);
   fprintf(stderr,"          -e (encode)\n");
   fprintf(stderr,"          -d (decode)\n");
-  fprintf(stderr,"          -u (microdecode) [tiny decoder, with -c <dict>] \n");
   fprintf(stderr,"          -i (input file)\n");
   fprintf(stderr,"          -o (output file)\n");
+  fprintf(stderr,"          -c (load)   [load codebook]\n");
+  fprintf(stderr,"          -C (create) [save codebook, encode mode only]\n");
+  fprintf(stderr,"          -l (list)   [show codebook]\n");
   fprintf(stderr,"          -v (verbose)\n");
   fprintf(stderr,"          -D [number] (max dictionary entries) [default: 1048576]\n");
-  fprintf(stderr,"          -l (display codes) [encode mode]\n");
-  fprintf(stderr,"          -c [file] (load codebook) [encode or decode mode]\n");
-  fprintf(stderr,"          -C [file] (save codebook) [encode mode]\n");
+  fprintf(stderr,"\n");
   exit(-1);
 }
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   int opt, rc=-1, hc;
   CF.prog = argv[0];
 
-  while ( (opt = getopt(argc,argv,"vedi:o:c:C:lD:uh")) > 0) {
+  while ( (opt = getopt(argc,argv,"vedi:o:c:C:lD:h")) > 0) {
     switch(opt) {
       case 'v': CF.verbose++; break;
       case 'e': CF.mode |= MODE_ENCODE; break;
@@ -120,13 +120,12 @@ int main(int argc, char *argv[]) {
       case 'l': CF.mode |= MODE_SHOW_CODES; break;
       case 'C': CF.mode |= MODE_MAKE_CODES; /* fall through */
       case 'c': CF.codefile = strdup(optarg); break;
-      case 'u': CF.mode |= MODE_MICRODECODE; break;
       case 'h': default: usage(); break;
     }
   }
 
   if ((!CF.ifile) || (!CF.ofile)) usage();
-  if (!(CF.mode & (MODE_ENCODE | MODE_DECODE | MODE_MICRODECODE))) usage();
+  if (!(CF.mode & (MODE_ENCODE | MODE_DECODE))) usage();
   if ((CF.mode & MODE_ENCODE) && (CF.mode & MODE_DECODE)) usage();
   if ((CF.mode & MODE_DECODE) && (CF.mode & MODE_MAKE_CODES)) usage();
   if (CF.codefile == NULL) usage();

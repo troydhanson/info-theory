@@ -99,7 +99,7 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
    * does on truly random data. for decoding, we know the olen. */
   if (ob == NULL) {
     if (mode & MODE_ENCODE) *olen = ilen * 2;
-    if (mode & (MODE_DECODE|MODE_MICRODECODE)) {
+    if (mode & MODE_DECODE) {
       if (ilen < sizeof(olen)) *olen = 0;
       else memcpy(olen, ib, sizeof(*olen));
     }
@@ -135,65 +135,8 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
     *olen = (o + p/8 + ((p%8) ? 1 : 0)) - ob;
   }
 
+  /* minimal decoder for use with preloaded dictionary. */
   if ((mode & MODE_DECODE)) {
-
-    /* skip length */
-    i += sizeof(*olen);
-
-    unsigned long _x=0; /* index (x) of the previous iteration */
-    int first_time=1;   /* first time decoding a symbol */
-    int bump;           /* 1 when encoder dictionary is ours+1 */
-
-    while (o - ob < *olen) {
-
-      /* x is the index number we're gathering from the encoded buffer.
-         first we need to figure out how many bits wide x is, because
-         this implementation uses a variable-width encoding. then we 
-         shift those 'b' bits into x. */
-      x = 0;
-      bump = first_time ? 0 : ((s->seq_used == s->max_dict_entries) ? 0 : 1);
-      b = get_num_bits(s, bump);
-      if ((i + b/8 + ((b%8) ? 1 : 0)) > ib + ilen) goto done;
-      while(b--) {
-        if (BIT_TEST(i,p)) x |= (1U << b);
-        p++;
-      }
-      //fprintf(stderr,"got index %lu in %u bits\n",x,get_num_bits(s,bump));
-
-      if (x > s->seq_used) goto done;
-
-      /* special case KwKwK (see LZW article); code refers to just-
-      *  created code that the compressor immediately used to encode.
-      *  it's not in our dictionary yet, but we know what it must be.
-       * re-emit previous code suffixed with its first character. */
-      if ((x == s->seq_used) && !first_time) { 
-        if (o + s->seq_all[_x].l + 1 > ob + *olen) goto done;
-        memcpy(o, s->seq_all[_x].s, s->seq_all[_x].l);
-        o[s->seq_all[_x].l] = s->seq_all[_x].s[0];
-        add_seq(s, o, s->seq_all[_x].l + 1);
-        o += s->seq_all[_x].l + 1;
-        _x = x;
-        continue;
-      }
-
-      /* normal case. output the bytes of sequence x */
-      if (o + s->seq_all[x].l > ob + *olen) goto done;
-      if (s->seq_all[x].l == 0) goto done;
-      memcpy(o, s->seq_all[x].s, s->seq_all[x].l);
-      o += s->seq_all[x].l;
-
-      /* add to dict previous seq + extension */
-      if (first_time) first_time=0;
-      else {
-        l = s->seq_all[_x].l + s->seq_all[x].l;
-        add_seq(s, o - l, s->seq_all[_x].l + 1);
-      }
-      _x = x;
-    }
-  }
-
-  /* this is a minimal decoder for use with preloaded dictionary. */
-  if (mode & MODE_MICRODECODE) {
     unsigned char w;
 
     i += sizeof(*olen);        /* skip length */
