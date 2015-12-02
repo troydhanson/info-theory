@@ -1,4 +1,4 @@
-PROGS= bf sat
+PROGS= bf sat sim
 all: $(PROGS)
 bf: bf.c 
 sat: sat.c

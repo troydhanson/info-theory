@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
  
 int n=16;
 int verbose=0;
@@ -11,7 +14,8 @@ char *ifile=NULL;
 char *tfile=NULL;
  
 void usage(char *prog) {
-  fprintf(stderr, "usage: %s [-n <2|4|8|...|32>] [-v] <source.txt> <test.txt>\n", prog);
+  fprintf(stderr, "usage: %s [-n <2|4|8|...|32>] [-s <bloom.dat>] "
+                  "[-v] <source.txt> <test.txt>\n", prog);
   exit(-1);
 }
 
@@ -69,21 +73,17 @@ int bf_hit(char *bf, char *line) {
 }
  
 int main(int argc, char * argv[]) {
-  int opt;
+  int opt,fd;
   FILE *ifilef=stdin,*tfilef=NULL;
   char line[100];
+  char *savefile=NULL;
  
-  while ( (opt = getopt(argc, argv, "n:v+")) != -1) {
+  while ( (opt = getopt(argc, argv, "hn:s:v+")) != -1) {
     switch (opt) {
-      case 'n':
-        n = atoi(optarg);
-        break;
-      case 'v':
-        verbose++;
-        break;
-      default:
-        usage(argv[0]);
-        break;
+      case 'n': n = atoi(optarg); break;
+      case 's': savefile = strdup(optarg); break;
+      case 'v': verbose++; break;
+      case 'h': default: usage(argv[0]); break;
     }
   }
  
@@ -109,6 +109,20 @@ int main(int argc, char * argv[]) {
 
   /* print saturation etc */
   if (verbose) bf_info(bf,stderr); 
+
+  /* if requested save the binary form of the filter */
+  if (savefile) {
+    fd = open(savefile,O_WRONLY|O_TRUNC|O_CREAT,0644);
+    if (fd < 0) {
+      fprintf(stderr,"can't open %s: %s\n", savefile, strerror(errno));
+      exit(-1);
+    }
+    if (write(fd, bf, byte_len(n)) != byte_len(n)) {
+      fprintf(stderr,"write %s\n", strerror(errno));
+      exit(-1);
+    }
+    close(fd);
+  }
 
   /* now loop over the test file */
   int hit=0, miss=0;
