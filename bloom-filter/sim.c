@@ -15,8 +15,8 @@
 #define BIT_CLEAR(c,i)  (c[(i)/8] &= ~(1 << ((i) % 8)))
 
 /* 
- *  This program treats its input file as a bit vector and then
- *  reports on its saturation (number of set bits, over total bits).
+ *  This program takes two prevously saved bitvectors (of equal size)
+ *  and reports on their similarity 
  */
 
 struct {
@@ -57,9 +57,9 @@ void report_similarity() {
     bxa += (!a && b);
   }
   printf("bits: %lu\n", (unsigned long)CF.len_a);
-  printf("intersection: %lu bits\n", (unsigned long)i);
-  printf("union: %lu bits\n", (unsigned long)u);
-  printf("jaccard similiarty: %.2f bits\n", u ? (i*100.0/u) : 0.0);
+  printf("intersection (i) of set bits: %lu bits\n", (unsigned long)i);
+  printf("union (u) of set bits: %lu bits\n", (unsigned long)u);
+  printf("jaccard similiarty coefficient (i/u): %.2f\n", u ? (i*1.0/u) : 0.0);
   printf("a not b: %lu bits\n", (unsigned long)axb);
   printf("b not a: %lu bits\n", (unsigned long)bxa);
 }
