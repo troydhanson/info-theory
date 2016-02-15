@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include "code.h"
 
-static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *x, int lookup) {
+static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *x) {
   struct seq *q,*p;
 
-  if (lookup) {
-    HASH_FIND(hh, s->dict, seq, len, q);
+  if (len == 1) {
+    q = &s->seq_all[ *seq ];
   } else {
     /* extension mode: suffix lookup from known precursor seq having index x */
     assert(*x < s->seq_used);
@@ -34,13 +34,12 @@ static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   q = &s->seq_all[ s->seq_used++ ];
   q->l = len;
   q->s = seq;
-  HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 
   /* find precursor sequence p. install a pointer to p+suffix byte */
   if (len == 1) return;
   unsigned long x=0;
-  have_seq(s, seq, len-1, &x, 1);
+  have_seq(s, seq, len-1, &x);
   s->seq_all[x].n[ seq[len-1] ] = q;
 }
 
@@ -70,7 +69,7 @@ int mlzw_init(lzw *s) {
 
 /* while x is an index into s->seq_all, we cheat and encode it
  * as fewer bits. x really only indexes into s->seq_all up to
- * the current item count (d) of the dictionary hash table. 
+ * the current item count (d) of the dictionary. 
  * in doing so this implementation uses variable-width indexes
  * into the dictionary. the encoder and decoder sync permits it.
  */
@@ -137,7 +136,7 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
       if (i+l > ib+ilen) { if (l > 1) emit(); break; }
 
       /* is this sequence in the dictionary? */
-      if (have_seq(s, i, l, &x, (l==1)?1:0)) { l++; continue; }
+      if (have_seq(s, i, l, &x)) { l++; continue; }
 
       /* the sequence is not in the dictionary */
       emit();            /* emit previous */
@@ -181,7 +180,6 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
 }
 
 void mlzw_release(lzw *s) {
-  HASH_CLEAR(hh, s->dict);
   if (s->seq_all) free(s->seq_all);
   if (s->x) free(s->x);
 }

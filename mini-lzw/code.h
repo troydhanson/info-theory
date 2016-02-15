@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
-#include "uthash.h"
 
 #define adim(x) (sizeof(x)/sizeof(*(x)))
 
@@ -17,7 +16,6 @@ struct seq {
   unsigned char *s;  /* sequence bytes */
   size_t l;          /* sequence length */
   struct seq *n[256];/* sequence of concat(s,c) for any c */
-  UT_hash_handle hh;
 };
 
 typedef struct {
