@@ -1,7 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include "code.h"
+
+void print_elapsed(struct timeval *tva, struct timeval *tvb) {
+  unsigned long usec_a = tva->tv_sec * 1000000 + tva->tv_usec;
+  unsigned long usec_b = tvb->tv_sec * 1000000 + tvb->tv_usec;
+  unsigned diff = usec_b - usec_a;
+  unsigned sec = diff/1000000;
+  unsigned usec = diff % 1000000;
+  fprintf(stderr,"elapsed %u sec %u usec\n", sec ,usec);
+}
 
 static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *x) {
   struct seq *q,*p;
@@ -99,6 +109,8 @@ static unsigned char get_num_bits(lzw *s, int bump) {
 
 int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen, 
                 unsigned char *ob, size_t *olen) {
+  struct timeval tva,tvb;
+  gettimeofday(&tva,NULL);
   unsigned char b, *i=ib, *o=ob;
   unsigned long x=0;
   int rc = -1;
@@ -176,6 +188,8 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
   rc = 0;
 
  done:
+  gettimeofday(&tvb,NULL);
+  print_elapsed(&tva, &tvb);
   return rc;
 }
 
@@ -196,6 +210,8 @@ do {                                     \
 
 /* used instead of mlzw_init to read a saved dictionary */
 int mlzw_load(lzw *s, char *file) {
+  struct timeval tva,tvb;
+  gettimeofday(&tva,NULL);
   int fd=-1, rc = -1;
   unsigned char *x;
   struct stat stat;
@@ -242,6 +258,8 @@ int mlzw_load(lzw *s, char *file) {
 
  done:
   if (fd != -1) close(fd);
+  gettimeofday(&tvb,NULL);
+  print_elapsed(&tva, &tvb);
   return rc;
 }
 
