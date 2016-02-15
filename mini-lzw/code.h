@@ -16,6 +16,7 @@
 struct seq {
   unsigned char *s;  /* sequence bytes */
   size_t l;          /* sequence length */
+  struct seq *n[256];/* sequence of concat(s,c) for any c */
   UT_hash_handle hh;
 };
 

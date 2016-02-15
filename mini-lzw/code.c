@@ -3,6 +3,26 @@
 #include <stdio.h>
 #include "code.h"
 
+static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *x, int lookup) {
+  struct seq *q,*p;
+
+  if (lookup) {
+    HASH_FIND(hh, s->dict, seq, len, q);
+  } else {
+    /* extension mode: suffix lookup from known precursor seq having index x */
+    assert(*x < s->seq_used);
+    assert(len > 1);
+    p = &s->seq_all[ *x ];
+    q = p->n[ seq[len-1] ];
+    //fprintf(stderr,"lookup %.*s from %.*s\n", (int)len, seq, (int)p->l, p->s);
+  }
+
+  if (q == NULL) return 0;
+  assert(q >= s->seq_all);
+  *x = q - s->seq_all;
+  return 1;
+}
+
 /* the memory pointed to by seq must be static through the 
  * lifetime of encoding or decoding the buffer */
 static void add_seq(lzw *s, unsigned char *seq, size_t len) {
@@ -16,17 +36,12 @@ static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   q->s = seq;
   HASH_ADD_KEYPTR(hh, s->dict, q->s, q->l, q);
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
-}
 
-static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *index) {
-  struct seq *q;
-
-  HASH_FIND(hh, s->dict, seq, len, q);
-  if (q == NULL) return 0;
-
-  assert(q >= s->seq_all);
-  *index = q - s->seq_all;
-  return 1;
+  /* find precursor sequence p. install a pointer to p+suffix byte */
+  if (len == 1) return;
+  unsigned long x=0;
+  have_seq(s, seq, len-1, &x, 1);
+  s->seq_all[x].n[ seq[len-1] ] = q;
 }
 
 static unsigned char bytes_all[256];
@@ -122,7 +137,7 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
       if (i+l > ib+ilen) { if (l > 1) emit(); break; }
 
       /* is this sequence in the dictionary? */
-      if (have_seq(s, i, l, &x)) { l++; continue; }
+      if (have_seq(s, i, l, &x, (l==1)?1:0)) { l++; continue; }
 
       /* the sequence is not in the dictionary */
       emit();            /* emit previous */
