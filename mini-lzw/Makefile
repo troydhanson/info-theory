@@ -18,4 +18,3 @@ mlzw: $(OBJS)
 
 clean:
 	rm -f *.o $(PROGS)
-	#make -C tests clean
