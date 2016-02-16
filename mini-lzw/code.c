@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/mman.h>
 #include "code.h"
 
 void print_elapsed(struct timeval *tva, struct timeval *tvb) {
@@ -35,7 +36,7 @@ static int have_seq(lzw *s, unsigned char *seq, size_t len, unsigned long *x) {
 
 /* the memory pointed to by seq must be static through the 
  * lifetime of encoding or decoding the buffer */
-static void add_seq(lzw *s, unsigned char *seq, size_t len) {
+static void add_seq(lzw *s, unsigned char *seq, size_t len, unsigned long x) {
   struct seq *q;
 
   /* our dictionary has a hard limit- no recycling */
@@ -44,12 +45,11 @@ static void add_seq(lzw *s, unsigned char *seq, size_t len) {
   q = &s->seq_all[ s->seq_used++ ];
   q->l = len;
   q->s = seq;
+  q->x = x;
   //fprintf(stderr,"add [%.*s]<len %u> @ index %lu\n", (int)len, seq, (int)len, q-s->seq_all);
 
-  /* find precursor sequence p. install a pointer to p+suffix byte */
+  /* install a pointer in precursor p to this seq */
   if (len == 1) return;
-  unsigned long x=0;
-  have_seq(s, seq, len-1, &x);
   s->seq_all[x].n[ seq[len-1] ] = q;
 }
 
@@ -68,7 +68,7 @@ int mlzw_init(lzw *s) {
   /* seed the single-byte sequences */
   for(j=0; j < 256; j++) {
     bytes_all[j] = j;
-    add_seq(s, &bytes_all[j], 1);
+    add_seq(s, &bytes_all[j], 1, 0);
   }
 
   rc = 0;
@@ -152,7 +152,7 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
 
       /* the sequence is not in the dictionary */
       emit();            /* emit previous */
-      add_seq(s, i, l);
+      add_seq(s, i, l, x);
       i += l-1;          /* start new seq */
       l = 1;
     }
@@ -170,6 +170,7 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
 
     while (o - ob < *olen) {
       x = 0;
+      //assert ((i + b/8 + ((b%8) ? 1 : 0)) <= ib + ilen);
       if ((i + b/8 + ((b%8) ? 1 : 0)) > ib + ilen) goto done;
       b = w;
       while(b--) {
@@ -177,6 +178,9 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
         p++;
       }
 
+      //assert (x < s->seq_used);
+      //assert (o + s->seq_all[x].l <= ob + *olen);
+      //assert (s->seq_all[x].l > 0);
       if (x >= s->seq_used) goto done;
       if (o + s->seq_all[x].l > ob + *olen) goto done;
       if (s->seq_all[x].l == 0) goto done;
@@ -194,41 +198,54 @@ int mlzw_recode(int mode, lzw *s, unsigned char *ib, size_t ilen,
 }
 
 void mlzw_release(lzw *s) {
+  if (s->map.addr) {
+    munmap(s->map.addr, s->map.len);
+    assert(s->map.fd >= 0);
+    close(s->map.fd);
+  }
   if (s->seq_all) free(s->seq_all);
-  if (s->x) free(s->x);
 }
 
-#define _read(f,b,l)                     \
-do {                                     \
-  int nr;                                \
-  if ( (nr = read(f,b,l)) != l) {        \
-    fprintf(stderr,"read: %s\n", nr<0 ?  \
-     strerror(errno) : "incomplete");    \
-     goto done;                          \
-  }                                      \
-} while(0)
+#define _read(pos,dst)                                              \
+ do {                                                               \
+   if ((pos + sizeof(dst)) > (s->map.addr + s->map.len)) {          \
+     fprintf(stderr,"error: corrupted dictionary\n");               \
+     goto done;                                                     \
+   }                                                                \
+   memcpy(&dst, pos, sizeof(dst));                                  \
+   pos += sizeof(dst);                                              \
+ } while(0) 
 
 /* used instead of mlzw_init to read a saved dictionary */
 int mlzw_load(lzw *s, char *file) {
   struct timeval tva,tvb;
   gettimeofday(&tva,NULL);
-  int fd=-1, rc = -1;
-  unsigned char *x;
+  int rc = -1;
+  unsigned char *p;
   struct stat stat;
   size_t i,l,m;
+  unsigned long x;
 
-  fd = open(file, O_RDONLY);
-  if (fd == -1) {
+  s->map.fd = open(file, O_RDONLY);
+  if (s->map.fd == -1) {
     fprintf(stderr, "open %s: %s\n", file, strerror(errno));
     goto done;
   }
 
-  if (fstat(fd, &stat) < 0) {
+  if (fstat(s->map.fd, &stat) < 0) {
     fprintf(stderr, "stat %s: %s\n", file, strerror(errno));
     goto done;
   }
 
-  _read(fd, &m, sizeof(m));
+  s->map.len = stat.st_size;
+  s->map.addr = mmap(0, s->map.len, PROT_READ, MAP_PRIVATE, s->map.fd, 0);
+  if (s->map.addr == MAP_FAILED) {
+    fprintf(stderr, "mmap %s: %s\n", file, strerror(errno));
+    goto done;
+  }
+
+  p = s->map.addr;
+  _read(p, m);
   s->max_dict_entries = m;
 
   /* allocate the dictionary as one contiguous buffer */
@@ -238,39 +255,38 @@ int mlzw_load(lzw *s, char *file) {
     goto done;
   }
 
-  /* this is where we'll store the sequence data */
-  s->x = calloc(1, stat.st_size);
-  if (s->x == NULL) {
-    fprintf(stderr,"out of memory\n");
-    goto done;
-  }
-
   /* add the sequences from the save file into dictionary */
-  x = s->x;
   for(i=0; i < m; i++) {
-    _read(fd, &l, sizeof(l)); /* read sequence length */
-    _read(fd, x, l);          /* read sequence into x */
-    add_seq(s,x, l);
-    x += l;                   /* advance x */
+    _read(p, l);       /* read sequence length */
+    _read(p, x);       /* read index of precursor seq */
+    if (p + l > s->map.addr + s->map.len) goto done;
+    add_seq(s,p,l,x);  /* p points to sequence bytes */
+    p += l;
   }
 
   rc = 0;
 
  done:
-  if (fd != -1) close(fd);
+  if (rc < 0) {
+    if (s->map.fd != -1) close(s->map.fd);
+    if (s->map.addr && (s->map.addr != MAP_FAILED)) {
+      munmap(s->map.addr, s->map.len);
+      s->map.addr = NULL;
+    }
+  }
   gettimeofday(&tvb,NULL);
   print_elapsed(&tva, &tvb);
   return rc;
 }
 
-#define _write(f,b,l)                    \
-do {                                     \
-  int nr;                                \
-  if ( (nr = write(f,b,l)) != l) {       \
-    fprintf(stderr,"write: %s\n", nr<0 ? \
-     strerror(errno) : "incomplete");    \
-     goto done;                          \
-  }                                      \
+#define _write(f,b,l)                      \
+do {                                       \
+  int nr;                                  \
+  if ( (nr = write(f,b,l)) != l) {         \
+    fprintf(stderr,"write: %s\n", (nr<0) ? \
+     strerror(errno) : "incomplete");      \
+     goto done;                            \
+  }                                        \
 } while(0)
 
 int mlzw_save_codebook(lzw *s, char *file) {
@@ -288,6 +304,7 @@ int mlzw_save_codebook(lzw *s, char *file) {
   for(i=0; i < s->seq_used; i++) {
     q = &s->seq_all[i];
     _write(fd, &q->l, sizeof(q->l)); /* write length */
+    _write(fd, &q->x, sizeof(q->x)); /* write precursor idx */
     _write(fd,  q->s,        q->l);  /* write seq    */
   }
 
@@ -297,6 +314,7 @@ int mlzw_save_codebook(lzw *s, char *file) {
   if (fd != -1) close(fd);
   return rc;
 }
+
 #define is_ascii(x) ((x >= 0x20) && (x <= 0x7e))
 int mlzw_show_codebook(lzw *s) {
   int rc = -1, w, b;

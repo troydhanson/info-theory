@@ -16,14 +16,18 @@ struct seq {
   unsigned char *s;  /* sequence bytes */
   size_t l;          /* sequence length */
   struct seq *n[256];/* sequence of concat(s,c) for any c */
+  unsigned long x;   /* index of precursor seq in seq_all */
 };
 
 typedef struct {
   struct seq *seq_all;
-  struct seq *dict;
   size_t seq_used;
   size_t max_dict_entries;
-  unsigned char *x; /* sequence data read from a save file */
+  struct { /* mmap'd dictionary. sequences point into the mapped region. */
+    unsigned char *addr;
+    off_t len;
+    int fd;
+  } map;
 } lzw;
 
 /* standard bit vector macros */
