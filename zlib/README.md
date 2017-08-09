@@ -11,9 +11,13 @@ that is normally found in `/usr/include/zlib.h`.
  * ungz: a simple "gunzip" implementation 
 
 You need to have zlib's development headers and library
-installed.  On Ubuntu you can get them like this:
+installed.  
 
-    sudo apt-get install zlib1g-dev
+    #ubuntu
+    sudo apt-get install zlib1g-dev 
+
+    #centos/rhel
+    sudo yum install zlib-devel 
 
 Usage 
 
