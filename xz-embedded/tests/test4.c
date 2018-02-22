@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
     goto done;
   }
   out = tmp;
+  memset(out, 0, olen);
 
   struct xz_buf b = {
     .in = (unsigned char*)buf,

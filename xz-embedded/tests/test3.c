@@ -95,6 +95,7 @@ int main(int argc, char *argv[]) {
     printf("out of memory\n");
     goto done;
   }
+  memset(out, 0, olen);
 
   struct xz_buf b = {
     .in = (unsigned char*)buf,
