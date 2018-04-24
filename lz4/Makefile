@@ -1,4 +1,4 @@
-PROGS := do-lz4 undo-lz4
+PROGS := do-lz4 undo-lz4 frame-lz4 unframe-lz4
 SRCS := $(wildcard *.c)
 OBJS := ${SRCS:.c=.o}
 

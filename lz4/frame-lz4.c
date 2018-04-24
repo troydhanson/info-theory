@@ -2,19 +2,18 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
-#include <lz4.h>
+#include <lz4frame.h>
 
 /*
- * do-lz4
+ * frame-lz4
  *
- * example of using lz4's regular api
+ * example of using lz4's framing api
  *
  *   on ubuntu, first install:
  *   sudo apt install liblz4-dev
@@ -65,8 +64,8 @@ char *map(char *file, size_t *len) {
 
 int main(int argc, char * argv[]) {
   char *file, *buf=NULL, *cbuf=NULL;
-  size_t len, cbound;
-  int sc, rc = -1;
+  size_t len, cbound, nr;
+  int rc = -1;
  
   if (argc < 2) {
     fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -79,22 +78,22 @@ int main(int argc, char * argv[]) {
 
   fprintf(stderr, "mapped %s: %zu bytes\n", file, len);
 
-  cbound = LZ4_compressBound(len);
+  cbound = LZ4F_compressFrameBound(len, NULL);
   cbuf = malloc(cbound);
   if (cbuf == NULL) {
     fprintf(stderr, "out of memory\n");
     goto done;
   }
 
-  sc = LZ4_compress_default(buf, cbuf, len, cbound);
-  assert(sc >= 0);
-  if (sc == 0) {
-    fprintf(stderr, "LZ4_compress_default: cannot compress\n");
+  nr = LZ4F_compressFrame(cbuf, cbound, buf, len, NULL);
+  if (LZ4F_isError(nr)) {
+    fprintf(stderr, "LZ4F_compressFrame: %s\n",
+      LZ4F_getErrorName(nr));
     goto done;
   }
 
-  fprintf(stderr, "compressed to %u bytes\n", sc);
-  write(STDOUT_FILENO, cbuf, sc);
+  fprintf(stderr, "compressed to %zu bytes\n", nr);
+  write(STDOUT_FILENO, cbuf, nr);
   rc = 0;
 
  done:

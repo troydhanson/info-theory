@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -8,12 +9,12 @@
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
-#include <lz4frame.h>
+#include <lz4.h>
 
 /*
  * undo-lz4
  *
- * example of using lz4's framing api
+ * example of using lz4's regular api
  *
  *   on ubuntu, first install:
  *   sudo apt install liblz4-dev
@@ -63,12 +64,12 @@ char *map(char *file, size_t *len) {
 }
 
 int main(int argc, char * argv[]) {
-  char *file, *buf=NULL, *cbuf=NULL, *c, out[512];
-  size_t len, nr, l, o;
-  int rc = -1;
+  char *file, *buf=NULL, *obuf=NULL;
+  int sc, rc = -1, olen=0;
+  size_t len;
  
-  if (argc < 2) {
-    fprintf(stderr, "usage: %s <file>\n", argv[0]);
+  if ((argc < 3) || (sscanf(argv[2], "%u", &olen) != 1)) {
+    fprintf(stderr, "usage: %s <file> <decompressed-size>\n", argv[0]);
     exit(-1);
   }
 
@@ -78,45 +79,25 @@ int main(int argc, char * argv[]) {
 
   fprintf(stderr, "mapped %s: %zu bytes\n", file, len);
 
-  /* compressed buffer */
-  c = buf;
-  l = len;
-
-  /* decompression context */
-  LZ4F_decompressionContext_t context;
-  nr = LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
-  if (LZ4F_isError(nr)) {
-    fprintf(stderr, "LZ4F_createDecompressoinContext: %s\n",
-      LZ4F_getErrorName(nr));
+  obuf = malloc( olen );
+  if (obuf == NULL) {
+    fprintf(stderr, "out of memory\n");
     goto done;
   }
 
-  do {
-    l = len - (c - buf); /* src bytes remaining */
-    o = sizeof(out);     /* output bytes avail  */
-    nr = LZ4F_decompress(context, out, &o, c, &l, NULL);
+  sc = LZ4_decompress_safe(buf, obuf, len, olen);
+  if (sc <= 0) {
+    fprintf(stderr, "LZ4_decompress_safe: %d\n", sc);
+    goto done;
+  }
 
-    if (LZ4F_isError(nr)) {
-      fprintf(stderr, "LZ4F_decompress: %s\n",
-        LZ4F_getErrorName(nr));
-      goto done;
-    }
-
-    if (o) {
-      fprintf(stderr, "decompressed %zu bytes\n", o);
-      write(STDOUT_FILENO, out, o);
-    }
-
-    c += l; /* advance src position */
-
-  } while( nr != 0 );
-
+  fprintf(stderr, "decompressed: %u bytes\n", sc);
+  write(STDOUT_FILENO, obuf, sc);
   rc = 0;
 
  done:
-  LZ4F_freeDecompressionContext(context);
   if (buf) munmap(buf, len);
-  if (cbuf) free(cbuf);
+  if (obuf) free(obuf);
   return rc;
 }
 
