@@ -13,6 +13,10 @@
 		/usr/include/lz4.h       # standard api
 		...
 
+### configure macro
+
+See `lz4.m4` for an example configure.ac snippet to check for it.
+
 ## framed buffers
 
 The lz4frame.h header provides a standalone API for interoperable
