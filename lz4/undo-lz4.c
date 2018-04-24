@@ -11,7 +11,7 @@
 #include <lz4frame.h>
 
 /*
- * do-lz4
+ * undo-lz4
  *
  * example of using lz4's framing api
  *
@@ -63,8 +63,8 @@ char *map(char *file, size_t *len) {
 }
 
 int main(int argc, char * argv[]) {
-  char *file, *buf=NULL, *cbuf=NULL;
-  size_t len, cbound, nr;
+  char *file, *buf=NULL, *cbuf=NULL, *c, out[512];
+  size_t len, nr, l, o;
   int rc = -1;
  
   if (argc < 2) {
@@ -78,25 +78,43 @@ int main(int argc, char * argv[]) {
 
   fprintf(stderr, "mapped %s: %zu bytes\n", file, len);
 
-  cbound = LZ4F_compressFrameBound(len, NULL);
-  cbuf = malloc(cbound);
-  if (cbuf == NULL) {
-    fprintf(stderr, "out of memory\n");
-    goto done;
-  }
+  /* compressed buffer */
+  c = buf;
+  l = len;
 
-  nr = LZ4F_compressFrame(cbuf, cbound, buf, len, NULL);
+  /* decompression context */
+  LZ4F_decompressionContext_t context;
+  nr = LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
   if (LZ4F_isError(nr)) {
-    fprintf(stderr, "LZ4F_compressFrame: %s\n",
+    fprintf(stderr, "LZ4F_createDecompressoinContext: %s\n",
       LZ4F_getErrorName(nr));
     goto done;
   }
 
-  fprintf(stderr, "compressed to %zu bytes\n", nr);
-  write(STDOUT_FILENO, cbuf, nr);
+  do {
+    l = len - (c - buf); /* src bytes remaining */
+    o = sizeof(out);     /* output bytes avail  */
+    nr = LZ4F_decompress(context, out, &o, c, &l, NULL);
+
+    if (LZ4F_isError(nr)) {
+      fprintf(stderr, "LZ4F_decompress: %s\n",
+        LZ4F_getErrorName(nr));
+      goto done;
+    }
+
+    if (o) {
+      fprintf(stderr, "decompressed %zu bytes\n", o);
+      write(STDOUT_FILENO, out, o);
+    }
+
+    c += l; /* advance src position */
+
+  } while( nr != 0 );
+
   rc = 0;
 
  done:
+  LZ4F_freeDecompressionContext(context);
   if (buf) munmap(buf, len);
   if (cbuf) free(cbuf);
   return rc;

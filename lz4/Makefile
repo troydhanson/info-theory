@@ -1,4 +1,4 @@
-PROGS := do-lz4
+PROGS := do-lz4 undo-lz4
 SRCS := $(wildcard *.c)
 OBJS := ${SRCS:.c=.o}
 
@@ -14,8 +14,8 @@ CFLAGS += -Wall -Wextra -g -O0
 
 all: $(PROGS)
 
-$(PROGS): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(PROGS)
+$(PROGS): %: %.o
+	$(CC) -o $@ $(CFLAGS) $< $(LDFLAGS) 
 
 .PHONY: clean
 
